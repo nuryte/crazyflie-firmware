@@ -138,10 +138,10 @@ static void powerDistributionForce(const control_t *control, motors_thrust_uncap
       motorThrustUncapped->motors.m4 = 0;
     }
   } else {
-    motorThrustUncapped->motors.m1 = (int) ((PI - control->bicopter.s1) / PI * (float) UINT16_MAX);
+    motorThrustUncapped->motors.m1 = (int) (control->bicopter.s1 * (float) UINT16_MAX);
     motorThrustUncapped->motors.m2 = (int) (control->bicopter.m1 * (float) UINT16_MAX);
     motorThrustUncapped->motors.m3 = (int) (control->bicopter.m2 * (float) UINT16_MAX);
-    motorThrustUncapped->motors.m4 = (int) (control->bicopter.s2 / PI * (float) UINT16_MAX);
+    motorThrustUncapped->motors.m4 = (int) (control->bicopter.s2 * (float) UINT16_MAX);
   }
 }
 
