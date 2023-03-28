@@ -75,6 +75,19 @@
   #define MOTORS_BL_PWM_PERIOD         MOTORS_BL_PWM_CNT_FOR_PERIOD
   #define MOTORS_BL_PWM_PRESCALE       (uint16_t)(MOTORS_BL_PWM_PRESCALE_RAW - 1)
   #define MOTORS_BL_POLARITY           TIM_OCPolarity_Low
+
+
+  #define SERVO_PERIOD 0.0040   // sets the lowest duty cycle length
+  #define SERVO_MINIMUM 0.0006   // sets the lowest duty cycle length
+  #define SERVO_RANGE 0.0018   // sets the lowest duty cycle length
+
+  #define SERVO_PWM_PRESCALE_RAW       (uint32_t)((TIM_CLOCK_HZ/0xFFFF) * SERVO_PERIOD + 1) // +1 is to not end up above 0xFFFF in the end
+  #define SERVO_PWM_CNT_FOR_PERIOD     (uint32_t)(TIM_CLOCK_HZ * SERVO_PERIOD / SERVO_PWM_PRESCALE_RAW)
+  #define SERVO_PWM_RANGE              (uint32_t)(TIM_CLOCK_HZ * SERVO_RANGE / SERVO_PWM_PRESCALE_RAW)
+  #define SERVO_PWM_MINIMUM            (uint32_t)(TIM_CLOCK_HZ * SERVO_MINIMUM / SERVO_PWM_PRESCALE_RAW)
+  #define SERVO_PWM_PERIOD             SERVO_PWM_CNT_FOR_PERIOD
+  #define SERVO_PWM_PRESCALE           (uint16_t)(SERVO_PWM_PRESCALE_RAW - 1)
+  #define SERVO_POLARITY               TIM_OCPolarity_Low
 #elif defined(CONFIG_MOTORS_ESC_PROTOCOL_ONESHOT42)
 /**
  * *WARNING* Make sure the brushless driver is configured correctly as on the Crazyflie with normal
@@ -125,9 +138,17 @@
  * Generates a PWM wave (50 - 400 Hz update rate with 1-2 ms high pulse) using the timer. That way we can use the same
  * base as for the regular PWM driver. This means it will be a PWM with a period of the update rate configured to be high
  * only in the 1-2 ms range.
+ * 
+ * *Servo Compatability Added*
+ * Servo Minimum and maximum are not doubles of each other (ex 1 and 2), so an extra variable was added to accomodate this
+ * For the WK-P0043 servo, I found the minimum to be .6ms and maximum to be 2.4ms
+ * In motors.c the motorsBLConv16ToBits function was changed in order to set the minimum and range to the new setup
  */
   #define BLMC_PERIOD 0.0025   // 2.5ms = 400Hz
-  #define MOTORS_HIGH_PERIOD_ZERO  0.001 // 1ms for zero throttle
+  #define SERVO_PERIOD 0.0025   // sets the lowest duty cycle length
+  #define SERVO_MINIMUM 0.0006   // sets the lowest duty cycle length
+  #define SERVO_RANGE 0.0018   // sets the lowest duty cycle length
+  #define MOTORS_HIGH_PERIOD_ZERO  0.001 // sets the range of the duty cycle 
 
   #define MOTORS_BL_PWM_PRESCALE_RAW   (uint32_t)((TIM_CLOCK_HZ/0xFFFF) * BLMC_PERIOD + 1) // +1 is to not end up above 0xFFFF in the end
   #define MOTORS_BL_PWM_CNT_FOR_PERIOD (uint32_t)(TIM_CLOCK_HZ * BLMC_PERIOD / MOTORS_BL_PWM_PRESCALE_RAW)
@@ -135,6 +156,14 @@
   #define MOTORS_BL_PWM_PERIOD         MOTORS_BL_PWM_CNT_FOR_PERIOD
   #define MOTORS_BL_PWM_PRESCALE       (uint16_t)(MOTORS_BL_PWM_PRESCALE_RAW - 1)
   #define MOTORS_BL_POLARITY           TIM_OCPolarity_Low
+
+  #define SERVO_PWM_PRESCALE_RAW       (uint32_t)((TIM_CLOCK_HZ/0xFFFF) * SERVO_PERIOD + 1) // +1 is to not end up above 0xFFFF in the end
+  #define SERVO_PWM_CNT_FOR_PERIOD     (uint32_t)(TIM_CLOCK_HZ * SERVO_PERIOD / SERVO_PWM_PRESCALE_RAW)
+  #define SERVO_PWM_RANGE              (uint32_t)(TIM_CLOCK_HZ * SERVO_RANGE / SERVO_PWM_PRESCALE_RAW)
+  #define SERVO_PWM_MINIMUM            (uint32_t)(TIM_CLOCK_HZ * SERVO_MINIMUM / SERVO_PWM_PRESCALE_RAW)
+  #define SERVO_PWM_PERIOD             SERVO_PWM_CNT_FOR_PERIOD
+  #define SERVO_PWM_PRESCALE           (uint16_t)(SERVO_PWM_PRESCALE_RAW - 1)
+  #define SERVO_POLARITY               TIM_OCPolarity_Low
 #endif
 
 #define NBR_OF_MOTORS 4

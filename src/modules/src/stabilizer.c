@@ -150,7 +150,7 @@ static void compressState()
     state.attitudeQuaternion.w};
   stateCompressed.quat = quatcompress(q);
 
-  float const deg2millirad = ((float)M_PI * 1000.0f) / 180.0f;
+  float const deg2millirad = ((float)PI * 1000.0f) / 180.0f;
   stateCompressed.rateRoll = sensorData.gyro.x * deg2millirad;
   stateCompressed.ratePitch = -sensorData.gyro.y * deg2millirad;
   stateCompressed.rateYaw = sensorData.gyro.z * deg2millirad;
@@ -179,6 +179,7 @@ void stabilizerInit(StateEstimatorType estimator)
   sensorsInit();
   stateEstimatorInit(estimator);
   controllerInit(ControllerTypeAny);
+  
   powerDistributionInit();
   motorsInit(platformConfigGetMotorMapping());
   collisionAvoidanceInit();
@@ -259,7 +260,7 @@ static void stabilizerTask(void* param)
   rateSupervisorInit(&rateSupervisorContext, xTaskGetTickCount(), M2T(1000), 997, 1003, 1);
 
   DEBUG_PRINT("Ready to fly.\n");
-
+  
   while(1) {
     // The sensor should unlock at 1kHz
     sensorsWaitDataReady();
@@ -289,11 +290,18 @@ static void stabilizerTask(void* param)
       }
 
       commanderGetSetpoint(&setpoint, &state);
+      
       compressSetpoint();
-
-      collisionAvoidanceUpdateSetpoint(&setpoint, &sensorData, &state, tick);
+      
+      //collisionAvoidanceUpdateSetpoint(&setpoint, &sensorData, &state, tick);
 
       controller(&control, &setpoint, &sensorData, &state, tick);
+
+      //if (fabs(state.attitude.roll)>30) {
+      //  control.thrust = 10000;
+      //} else {
+      //  control.thrust = 0;
+      //}
 
       checkEmergencyStopTimeout();
 
@@ -302,11 +310,16 @@ static void stabilizerTask(void* param)
       // we are ok to fly, or if the Crazyflie is in flight.
       //
       supervisorUpdate(&sensorData);
+      
 
       if (emergencyStop || (systemIsArmed() == false)) {
         motorsStop();
       } else {
         powerDistribution(&control, &motorThrustUncapped);
+        /*if (tick%10000 == 0){
+          DEBUG_PRINT("(power) %ld,%ld,%ld,%ld\n",motorThrustUncapped.motors.m1, motorThrustUncapped.motors.m2,
+                                              motorThrustUncapped.motors.m3, motorThrustUncapped.motors.m4);
+        }*/
         batteryCompensation(&motorThrustUncapped, &motorThrustBatCompUncapped);
         powerDistributionCap(&motorThrustBatCompUncapped, &motorPwm);
         setMotorRatios(&motorPwm);

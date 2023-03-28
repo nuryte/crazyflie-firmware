@@ -35,6 +35,7 @@
 #include "num.h"
 #include "quatcompress.h"
 #include "FreeRTOS.h"
+#include "debug.h"
 
 /* The generic commander format contains a packet type and data that has to be
  * decoded into a setpoint_t structure. The aim is to make it future-proof
@@ -100,18 +101,15 @@ static void velocityDecoder(setpoint_t *setpoint, uint8_t type, const void *data
   const struct velocityPacket_s *values = data;
 
   ASSERT(datalen == sizeof(struct velocityPacket_s));
+  //DEBUG_PRINT("(Velocity) Please show here!)\n");
 
-  setpoint->mode.x = modeVelocity;
-  setpoint->mode.y = modeVelocity;
-  setpoint->mode.z = modeVelocity;
+  setpoint->bicopter.fx = values->vx;
+  setpoint->bicopter.fz = 0;
+  setpoint->bicopter.tauz = values->vz;
+  setpoint->bicopter.taux = values->yawrate;
 
-  setpoint->velocity.x = values->vx;
-  setpoint->velocity.y = values->vy;
-  setpoint->velocity.z = values->vz;
-
-  setpoint->mode.yaw = modeVelocity;
-
-  setpoint->attitudeRate.yaw = -values->yawrate;
+  setpoint->bicopter.mode = 1;
+  setpoint->bicopter.absz = values->vy;
 }
 
 /* zDistanceDecoder
@@ -300,10 +298,12 @@ static void altHoldDecoder(setpoint_t *setpoint, uint8_t type, const void *data,
  * Set the Crazyflie absolute height and velocity in the body coordinate system
  */
 struct hoverPacket_s {
-  float vx;           // m/s in the body frame of reference
-  float vy;           // ...
-  float yawrate;      // deg/s
-  float zDistance;    // m in the world frame of reference
+  float fx;           // m/s in the body frame of reference
+  float fz;           // ...
+  float tx;      // deg/s
+  float ty;    // m in the world frame of reference
+  float tz;    // m in the world frame of reference
+  float id;
 } __attribute__((packed));
 static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
@@ -311,20 +311,17 @@ static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, s
 
   ASSERT(datalen == sizeof(struct hoverPacket_s));
 
-  setpoint->mode.z = modeAbs;
-  setpoint->position.z = values->zDistance;
+  setpoint->sausage.fx = values->fx;
+  setpoint->sausage.fz = values->fz;
+  setpoint->sausage.taux = values->tx;
+  setpoint->sausage.tauy = values->ty;
+  setpoint->sausage.tauz = values->tz;
+  setpoint->sausage.id = values->id;
+  //DEBUG_PRINT("(hoverdecoder!!!) Please show here!): %d :\n", setpoint->sausage.id);
 
 
-  setpoint->mode.yaw = modeVelocity;
-  setpoint->attitudeRate.yaw = -values->yawrate;
 
-
-  setpoint->mode.x = modeVelocity;
-  setpoint->mode.y = modeVelocity;
-  setpoint->velocity.x = values->vx;
-  setpoint->velocity.y = values->vy;
-
-  setpoint->velocity_body = true;
+  setpoint->bicopter.mode = 2;
 }
 
 struct fullStatePacket_s {
@@ -348,6 +345,19 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
 
   ASSERT(datalen == sizeof(struct fullStatePacket_s));
 
+  setpoint->sausage.fx = values->x/ 1000.0f;
+  setpoint->sausage.fy = values->y/ 1000.0f;
+  setpoint->sausage.fz = 0;//values->y/ 1000.0f;
+  setpoint->sausage.absz = values->z/ 1000.0f;
+  setpoint->sausage.taux = values->vx/ 1000.0f;
+  setpoint->sausage.tauy = values->vy/ 1000.0f;
+  setpoint->sausage.tauz = values->vz/ 1000.0f;
+  setpoint->sausage.id = values->ax/1000;
+
+  setpoint->bicopter.mode = 2;
+  //DEBUG_PRINT("(FULLSTATE!!!) Please show here!): %f %d :\n", (double)setpoint->sausage.fz , setpoint->sausage.id);
+
+  /*
   #define UNPACK(x) \
   setpoint->mode.x = modeAbs; \
   setpoint->position.x = values->x / 1000.0f; \
@@ -358,6 +368,7 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
   UNPACK(y)
   UNPACK(z)
   #undef UNPACK
+  
 
   float const millirad2deg = 180.0f / ((float)M_PI * 1000.0f);
   setpoint->attitudeRate.roll = millirad2deg * values->rateRoll;
@@ -369,6 +380,7 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
   setpoint->mode.roll = modeDisable;
   setpoint->mode.pitch = modeDisable;
   setpoint->mode.yaw = modeDisable;
+  */
 }
 
 /* positionDecoder
@@ -383,19 +395,34 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
 static void positionDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
   const struct positionPacket_s *values = data;
+  //DEBUG_PRINT("(position) %f,%f,%f,%f\n", (double)values->x, (double)values->y, (double)values->z, (double)values->yaw);
 
+  //setpoint->manual.m1 = values->x;
+  //setpoint->manual.m2 = values->y;
+  //setpoint->manual.m3 = values->z;
+  //setpoint->manual.m4 = values->yaw;
+
+  setpoint->bicopter.fx = values->x;
+  setpoint->bicopter.fz = values->y;
+  setpoint->bicopter.tauz = values->z;
+  setpoint->bicopter.taux = values->yaw;
+
+  setpoint->bicopter.mode = 0;
+  setpoint->bicopter.absz = 0;
+  //DEBUG_PRINT("(position) %f,%f,%f,%f\n", (double)setpoint->bicopter.fx, (double)setpoint->bicopter.fz, (double)setpoint->bicopter.tauz, (double)setpoint->bicopter.taux);
+  /**
   setpoint->mode.x = modeAbs;
   setpoint->mode.y = modeAbs;
   setpoint->mode.z = modeAbs;
 
-  setpoint->position.x = values->x;
-  setpoint->position.y = values->y;
-  setpoint->position.z = values->z;
+  setpoint->position.x = 0;//values->x;
+  setpoint->position.y = 0;//values->y;
+  setpoint->position.z = 0;//values->z;
 
 
   setpoint->mode.yaw = modeAbs;
 
-  setpoint->attitude.yaw = values->yaw;
+  setpoint->attitude.yaw = 0;//values->yaw;*/
 }
 
  /* ---===== 3 - packetDecoders array =====--- */
@@ -428,6 +455,10 @@ void crtpCommanderGenericDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
   if (type<nTypes && (packetDecoders[type] != NULL)) {
     packetDecoders[type](setpoint, type, ((char*)pk->data)+1, pk->size-1);
   }
+  /**
+  DEBUG_PRINT("(signal)%f, %f, %f, %f\n", (double)setpoint->manual.m1,(double)setpoint->manual.m2,(double)setpoint->manual.m3,(double)setpoint->manual.m4);
+  DEBUG_PRINT("(vels)%f, %f, %f, %f\n", (double)setpoint->attitude.roll,(double)setpoint->attitude.pitch,(double)setpoint->attitude.yaw,(double)setpoint->thrust);
+  */
 }
 
 /**

@@ -34,6 +34,10 @@
 #include "config.h"
 #include "math.h"
 
+
+
+#define PI ((float) 3.14159265)
+
 #ifndef CONFIG_MOTORS_DEFAULT_IDLE_THRUST
 #  define DEFAULT_IDLE_THRUST 0
 #else
@@ -78,6 +82,12 @@ static uint16_t capMinThrust(float thrust, uint32_t minThrust) {
 
 static void powerDistributionLegacy(const control_t *control, motors_thrust_uncapped_t* motorThrustUncapped)
 {
+
+  motorThrustUncapped->motors.m1 = control->thrust;
+  motorThrustUncapped->motors.m2 = control->pitch;
+  motorThrustUncapped->motors.m3 = control->roll;
+  motorThrustUncapped->motors.m4 = control->yaw;
+  /**
   int16_t r = control->roll / 2.0f;
   int16_t p = control->pitch / 2.0f;
 
@@ -85,6 +95,7 @@ static void powerDistributionLegacy(const control_t *control, motors_thrust_unca
   motorThrustUncapped->motors.m2 = control->thrust - r - p - control->yaw;
   motorThrustUncapped->motors.m3 = control->thrust + r - p + control->yaw;
   motorThrustUncapped->motors.m4 = control->thrust + r + p - control->yaw;
+  */
 }
 
 static void powerDistributionForceTorque(const control_t *control, motors_thrust_uncapped_t* motorThrustUncapped) {
@@ -112,12 +123,32 @@ static void powerDistributionForceTorque(const control_t *control, motors_thrust
   }
 }
 
+//custom servo/motor function, barely uses any logic //m1 and m4 are servos
 static void powerDistributionForce(const control_t *control, motors_thrust_uncapped_t* motorThrustUncapped) {
-  // Not implemented yet
+  if (false) {
+    if (control->thrust>0){
+      motorThrustUncapped->motors.m1 = UINT16_MAX;
+      motorThrustUncapped->motors.m2 = UINT16_MAX;
+      motorThrustUncapped->motors.m3 = UINT16_MAX;
+      motorThrustUncapped->motors.m4 = UINT16_MAX;
+    } else {
+      motorThrustUncapped->motors.m1 = 0;
+      motorThrustUncapped->motors.m2 = 0;
+      motorThrustUncapped->motors.m3 = 0;
+      motorThrustUncapped->motors.m4 = 0;
+    }
+  } else {
+    motorThrustUncapped->motors.m1 = (int) ((PI - control->bicopter.s1) / PI * (float) UINT16_MAX);
+    motorThrustUncapped->motors.m2 = (int) (control->bicopter.m1 * (float) UINT16_MAX);
+    motorThrustUncapped->motors.m3 = (int) (control->bicopter.m2 * (float) UINT16_MAX);
+    motorThrustUncapped->motors.m4 = (int) (control->bicopter.s2 / PI * (float) UINT16_MAX);
+  }
 }
 
 void powerDistribution(const control_t *control, motors_thrust_uncapped_t* motorThrustUncapped)
 {
+  powerDistributionForce(control, motorThrustUncapped);
+  return;
   switch (control->controlMode) {
     case controlModeLegacy:
       powerDistributionLegacy(control, motorThrustUncapped);
@@ -132,6 +163,7 @@ void powerDistribution(const control_t *control, motors_thrust_uncapped_t* motor
       // Nothing here
       break;
   }
+  
 }
 
 void powerDistributionCap(const motors_thrust_uncapped_t* motorThrustBatCompUncapped, motors_thrust_pwm_t* motorPwm)

@@ -197,6 +197,7 @@ typedef struct control_s {
       int16_t yaw;
       float thrust;
     };
+    
 
     // controlModeForceTorque
     // Note: Using SI units for a controller makes it hard to tune it for different platforms. The normalized force API
@@ -212,11 +213,23 @@ typedef struct control_s {
         };
       };
     };
-
     // controlModeForce
     float normalizedForces[STABILIZER_NR_OF_MOTORS]; // 0.0 ... 1.0
   };
 
+  struct {
+    float m1;
+    float m2;
+    float m3;
+    float m4;
+  } manual;
+
+  struct {
+    float m1;
+    float m2;
+    float s1;
+    float s2;
+  } bicopter;
   control_mode_t controlMode;
 } control_t;
 
@@ -267,6 +280,34 @@ typedef struct setpoint_s {
     stab_mode_t yaw;
     stab_mode_t quat;
   } mode;
+
+  struct {
+    float m1;
+    float m2;
+    float m3;
+    float m4;
+  } manual;
+
+  struct {
+    float fx;
+    float fz;
+    float taux;
+    float tauz;
+    int mode;
+    float absz;
+  } bicopter;
+
+  struct {
+    float fx;
+    float fy;
+    float fz;
+    float taux;
+    float tauy;
+    float tauz;
+    int id;
+    float absz;
+  } sausage;
+
 } setpoint_t;
 
 /** Estimate of position */

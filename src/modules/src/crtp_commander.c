@@ -31,6 +31,7 @@
 #include "cfassert.h"
 #include "commander.h"
 #include "crtp.h"
+#include "debug.h"
 
 
 static bool isInit;
@@ -110,14 +111,17 @@ const static metaCommandDecoder_t metaCommandDecoders[] = {
 /* Decoder switch */
 static void commanderCrtpCB(CRTPPacket* pk)
 {
+  //DEBUG_PRINT("(Commander Start!)\n");
   static setpoint_t setpoint;
 
   if(pk->port == CRTP_PORT_SETPOINT && pk->channel == 0) {
+    //DEBUG_PRINT("(rpyt decode commander)\n");
     crtpCommanderRpytDecodeSetpoint(&setpoint, pk);
     commanderSetSetpoint(&setpoint, COMMANDER_PRIORITY_CRTP);
   } else if (pk->port == CRTP_PORT_SETPOINT_GENERIC) {
     switch (pk->channel) {
     case SET_SETPOINT_CHANNEL:
+      //DEBUG_PRINT("(generic decode commander)\n");
       crtpCommanderGenericDecodeSetpoint(&setpoint, pk);
       commanderSetSetpoint(&setpoint, COMMANDER_PRIORITY_CRTP);
       break;

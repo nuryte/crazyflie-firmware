@@ -47,6 +47,29 @@ static const MotorPerifDef MOTORS_PA1_TIM2_CH2_BRUSHED =
     .preloadConfig = TIM_OC2PreloadConfig,
 };
 
+
+// CF2.X connector M1, PA1, TIM2_CH2
+static const MotorPerifDef SERVOS_PA1_TIM2_CH2_BRUSHED =
+{
+    .drvType       = BRUSHED,
+    .gpioPerif     = RCC_AHB1Periph_GPIOA,
+    .gpioPort      = GPIOA,
+    .gpioPin       = GPIO_Pin_1,
+    .gpioPinSource = GPIO_PinSource1,
+    .gpioOType     = GPIO_OType_PP,
+    .gpioAF        = GPIO_AF_TIM2,
+    .timPerif      = RCC_APB1Periph_TIM2,
+    .tim           = TIM2,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM2_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare2,
+    .getCompare    = TIM_GetCapture2,
+    .ocInit        = TIM_OC2Init,
+    .preloadConfig = TIM_OC2PreloadConfig,
+};
+
 // CF2.X connector M2, PB11, TIM2_CH4
 static const MotorPerifDef MOTORS_PB11_TIM2_CH4_BRUSHED =
 {
@@ -129,6 +152,28 @@ static const MotorPerifDef MOTORS_PA1_TIM2_CH2_BRUSHLESS_INV_PP =
     .timDbgStop    = DBGMCU_TIM2_STOP,
     .timPeriod     = MOTORS_BL_PWM_PERIOD,
     .timPrescaler  = MOTORS_BL_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare2,
+    .getCompare    = TIM_GetCapture2,
+    .ocInit        = TIM_OC2Init,
+    .preloadConfig = TIM_OC2PreloadConfig,
+};
+
+// CF2.X connector M1, PA1, TIM2_CH2, Brushless config, inversed
+static const MotorPerifDef SERVOS_PA1_TIM2_CH2_BRUSHLESS_INV_PP =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOA,
+    .gpioPort      = GPIOA,
+    .gpioPin       = GPIO_Pin_1,
+    .gpioPinSource = GPIO_PinSource1,
+    .gpioOType     = GPIO_OType_PP,
+    .gpioAF        = GPIO_AF_TIM2,
+    .timPerif      = RCC_APB1Periph_TIM2,
+    .tim           = TIM2,
+    .timPolarity   = TIM_OCPolarity_Low,
+    .timDbgStop    = DBGMCU_TIM2_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
     .setCompare    = TIM_SetCompare2,
     .getCompare    = TIM_GetCapture2,
     .ocInit        = TIM_OC2Init,
@@ -231,6 +276,67 @@ static const MotorPerifDef MOTORS_PA1_TIM2_CH2_BRUSHLESS_PP =
     .DMA_IRQChannel = DMA1_Stream6_IRQn,
 };
 
+// Bolt M1, PA1, TIM2_CH2, Brushless config
+static const MotorPerifDef SERVOS_PA1_TIM2_CH2_BRUSHLESS_PP =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOA,
+    .gpioPort      = GPIOA,
+    .gpioPin       = GPIO_Pin_1,
+    .gpioPinSource = GPIO_PinSource1,
+    .gpioOType     = GPIO_OType_PP,
+    .gpioAF        = GPIO_AF_TIM2,
+    .gpioPowerswitchPerif = RCC_AHB1Periph_GPIOA,
+    .gpioPowerswitchPort  = GPIOA,
+    .gpioPowerswitchPin   = GPIO_Pin_0,
+    .timPerif      = RCC_APB1Periph_TIM2,
+    .tim           = TIM2,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM2_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare2,
+    .getCompare    = TIM_GetCapture2,
+    .ocInit        = TIM_OC2Init,
+    .preloadConfig = TIM_OC2PreloadConfig,
+    .DMA_stream    = DMA1_Stream6,
+    .DMA_Channel   = DMA_Channel_3,
+    .DMA_PerifAddr = (uint32_t)&TIM2->CCR2,
+    .TIM_DMASource = TIM_DMA_CC2,
+    .DMA_IRQChannel = DMA1_Stream6_IRQn,
+};
+
+
+// Bolt M1, PA1, TIM2_CH2, Brushless config changed for SERVO
+static const MotorPerifDef SERVOS_PA1_TIM3_CH2_BRUSHLESS_PP_1 =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOA,
+    .gpioPort      = GPIOA,
+    .gpioPin       = GPIO_Pin_1,
+    .gpioPinSource = GPIO_PinSource1,
+    .gpioOType     = GPIO_OType_PP,
+    .gpioAF        = GPIO_AF_TIM3,
+    .gpioPowerswitchPerif = RCC_AHB1Periph_GPIOA,
+    .gpioPowerswitchPort  = GPIOA,
+    .gpioPowerswitchPin   = GPIO_Pin_0,
+    .timPerif      = RCC_APB1Periph_TIM3,
+    .tim           = TIM3,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM3_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare2,
+    .getCompare    = TIM_GetCapture2,
+    .ocInit        = TIM_OC2Init,
+    .preloadConfig = TIM_OC2PreloadConfig,
+    .DMA_stream    = DMA1_Stream6,
+    .DMA_Channel   = DMA_Channel_3,
+    .DMA_PerifAddr = (uint32_t)&TIM3->CCR2,
+    .TIM_DMASource = TIM_DMA_CC2,
+    .DMA_IRQChannel = DMA1_Stream6_IRQn,
+};
+
 // Bolt M2, PB11, TIM2_CH4, Brushless config
 static const MotorPerifDef MOTORS_PB11_TIM2_CH4_BRUSHLESS_PP =
 {
@@ -261,6 +367,68 @@ static const MotorPerifDef MOTORS_PB11_TIM2_CH4_BRUSHLESS_PP =
     .DMA_IRQChannel = DMA1_Stream7_IRQn,
 
 };
+
+// Bolt M2, PB11, TIM2_CH4, Brushless config
+static const MotorPerifDef SERVOS_PB11_TIM2_CH4_BRUSHLESS_PP =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOB,
+    .gpioPort      = GPIOB,
+    .gpioPin       = GPIO_Pin_11,
+    .gpioPinSource = GPIO_PinSource11,
+    .gpioOType     = GPIO_OType_PP,
+    .gpioAF        = GPIO_AF_TIM3,
+    .gpioPowerswitchPerif = RCC_AHB1Periph_GPIOB,
+    .gpioPowerswitchPort  = GPIOB,
+    .gpioPowerswitchPin   = GPIO_Pin_12,
+    .timPerif      = RCC_APB1Periph_TIM2,
+    .tim           = TIM3,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM3_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare4,
+    .getCompare    = TIM_GetCapture4,
+    .ocInit        = TIM_OC4Init,
+    .preloadConfig = TIM_OC4PreloadConfig,
+    .DMA_stream    = DMA1_Stream7,
+    .DMA_Channel   = DMA_Channel_3,
+    .DMA_PerifAddr = (uint32_t)&TIM3->CCR4,
+    .TIM_DMASource = TIM_DMA_CC4,
+    .DMA_IRQChannel = DMA1_Stream7_IRQn,
+
+};
+// Bolt M2, PB11, TIM2_CH4, Brushless config
+static const MotorPerifDef SERVOS_PB11_TIM3_CH4_BRUSHLESS_PP_1 =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOB,
+    .gpioPort      = GPIOB,
+    .gpioPin       = GPIO_Pin_11,
+    .gpioPinSource = GPIO_PinSource11,
+    .gpioOType     = GPIO_OType_PP,
+    .gpioAF        = GPIO_AF_TIM3,
+    .gpioPowerswitchPerif = RCC_AHB1Periph_GPIOB,
+    .gpioPowerswitchPort  = GPIOB,
+    .gpioPowerswitchPin   = GPIO_Pin_12,
+    .timPerif      = RCC_APB1Periph_TIM3,
+    .tim           = TIM3,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM3_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare4,
+    .getCompare    = TIM_GetCapture4,
+    .ocInit        = TIM_OC4Init,
+    .preloadConfig = TIM_OC4PreloadConfig,
+    .DMA_stream    = DMA1_Stream7,
+    .DMA_Channel   = DMA_Channel_3,
+    .DMA_PerifAddr = (uint32_t)&TIM3->CCR4,
+    .TIM_DMASource = TIM_DMA_CC4,
+    .DMA_IRQChannel = DMA1_Stream7_IRQn,
+
+};
+
 
 // Bolt M3, PA15, TIM2_CH1, Brushless config
 static const MotorPerifDef MOTORS_PA15_TIM2_CH1_BRUSHLESS_PP =
@@ -370,13 +538,45 @@ static const MotorPerifDef MOTORS_PA1_TIM2_CH2_BRUSHLESS_OD =
     .getCompare    = TIM_GetCapture2,
     .ocInit        = TIM_OC2Init,
     .preloadConfig = TIM_OC2PreloadConfig,
-    .DMA_stream    = DMA1_Stream6,
+    .DMA_stream    = DMA1_Stream6,//DMA1static_Stream6,
     .DMA_Channel   = DMA_Channel_3,
     .DMA_PerifAddr = (uint32_t)&TIM2->CCR2,
     .TIM_DMASource = TIM_DMA_CC2,
     .DMA_IRQChannel = DMA1_Stream6_IRQn,
 };
 
+
+// CF21-BL M1, PA1, TIM2_CH2, Brushless config including DSHOT
+static const MotorPerifDef SERVOS_PA1_TIM2_CH2_BRUSHLESS_OD =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOA,
+    .gpioPort      = GPIOA,
+    .gpioPin       = GPIO_Pin_1,
+    .gpioPinSource = GPIO_PinSource1,
+    .gpioOType     = GPIO_OType_OD,
+    .gpioAF        = GPIO_AF_TIM2,
+    .gpioPowerswitchPerif = RCC_AHB1Periph_GPIOA,
+    .gpioPowerswitchPort  = GPIOA,
+    .gpioPowerswitchPin   = GPIO_Pin_0,
+    .timPerif      = RCC_APB1Periph_TIM2,
+    .tim           = TIM2,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM2_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare2,
+    .getCompare    = TIM_GetCapture2,
+    .ocInit        = TIM_OC2Init,
+    .preloadConfig = TIM_OC2PreloadConfig,
+    .DMA_stream    = DMA1_Stream6,//DMA1static_Stream6,
+    .DMA_Channel   = DMA_Channel_3,
+    .DMA_PerifAddr = (uint32_t)&TIM2->CCR2,
+    .TIM_DMASource = TIM_DMA_CC2,
+    .DMA_IRQChannel = DMA1_Stream6_IRQn,
+};
+
+//.DMA_stream    = DMA1_Stream6//DMA1static_Stream6,
 // CF21-BL M2, PB11, TIM2_CH4, Brushless config including DSHOT
 static const MotorPerifDef MOTORS_PB11_TIM2_CH4_BRUSHLESS_OD =
 {
@@ -485,6 +685,29 @@ static const MotorPerifDef MOTORS_PA2_TIM2_CH3_BRUSHLESS_OD =
     .timDbgStop    = DBGMCU_TIM2_STOP,
     .timPeriod     = MOTORS_BL_PWM_PERIOD,
     .timPrescaler  = MOTORS_BL_PWM_PRESCALE,
+    .setCompare    = TIM_SetCompare3,
+    .getCompare    = TIM_GetCapture3,
+    .ocInit        = TIM_OC3Init,
+    .preloadConfig = TIM_OC3PreloadConfig,
+};
+
+
+// Deck TX2, PA2, TIM2_CH3
+static const MotorPerifDef SERVOS_PA2_TIM2_CH3_BRUSHLESS_OD =
+{
+    .drvType       = BRUSHLESS,
+    .gpioPerif     = RCC_AHB1Periph_GPIOA,
+    .gpioPort      = GPIOA,
+    .gpioPin       = GPIO_Pin_2,
+    .gpioPinSource = GPIO_PinSource2,
+    .gpioOType     = GPIO_OType_OD,
+    .gpioAF        = GPIO_AF_TIM2,
+    .timPerif      = RCC_APB1Periph_TIM2,
+    .tim           = TIM2,
+    .timPolarity   = TIM_OCPolarity_High,
+    .timDbgStop    = DBGMCU_TIM2_STOP,
+    .timPeriod     = SERVO_PWM_PERIOD,
+    .timPrescaler  = SERVO_PWM_PRESCALE,
     .setCompare    = TIM_SetCompare3,
     .getCompare    = TIM_GetCapture3,
     .ocInit        = TIM_OC3Init,
@@ -740,7 +963,7 @@ const MotorPerifDef* motorMapDefaltConBrushless[NBR_OF_MOTORS] =
 
 /**
  * Brushless motors mapped to the Bolt PWM outputs.
- */
+ *///
 const MotorPerifDef* motorMapBoltBrushless[NBR_OF_MOTORS] =
 {
   &MOTORS_PA1_TIM2_CH2_BRUSHLESS_PP,
@@ -751,6 +974,8 @@ const MotorPerifDef* motorMapBoltBrushless[NBR_OF_MOTORS] =
 
 /**
  * Brushless motors mapped to the Bolt 1.1 PWM outputs.
+ * changed to accomodate servos
+ * this is the one we use for this()()()()()()()
  */
 const MotorPerifDef* motorMapBolt11Brushless[NBR_OF_MOTORS] =
 {

@@ -96,11 +96,17 @@ static uint64_t lastCycleTime;
 static uint32_t cycleTime;
 
 /* Private functions */
-
+/* *bi-blimp servo changes* Here we use the variables created in motors.h to set the ranges and minimums of 
+the rotors and servos*/
 #ifndef CONFIG_MOTORS_ESC_PROTOCOL_DSHOT
-static uint16_t motorsBLConv16ToBits(uint16_t bits)
+static uint16_t motorsBLConv16ToBits(uint32_t id, uint16_t bits)
 {
-  return (MOTORS_BL_PWM_CNT_FOR_HIGH + ((bits * MOTORS_BL_PWM_CNT_FOR_HIGH) / 0xFFFF));
+  if ((id == 2) | (id == 1)){ // normal rotor inputs
+    return (MOTORS_BL_PWM_CNT_FOR_HIGH  + ((bits * MOTORS_BL_PWM_CNT_FOR_HIGH) / 0xFFFF));
+  }
+  else { // servo inputs
+    return (SERVO_PWM_MINIMUM + ((bits * SERVO_PWM_RANGE) / 0xFFFF));
+  }
 }
 #endif
 
@@ -475,7 +481,7 @@ void motorsSetRatio(uint32_t id, uint16_t ithrust)
       // Prepare DSHOT, firing it will be done synchronously with motorsBurstDshot.
       motorsPrepareDshot(id, ratio);
 #else
-      motorMap[id]->setCompare(motorMap[id]->tim, motorsBLConv16ToBits(ratio));
+      motorMap[id]->setCompare(motorMap[id]->tim, motorsBLConv16ToBits(id,ratio));
 #endif
     }
     else

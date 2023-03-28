@@ -85,6 +85,16 @@ typedef struct {
     float r_pitch;
     float r_yaw;
     float accelz;
+
+    int bicoptermode;
+    float groundasl;
+    float setasl;
+    float zrate;
+    float baseYaw;
+    float yawrate;
+    float rollrate;
+    float roll;
+    float pitch;
 } controllerMellinger_t;
 
 void controllerMellingerInit(controllerMellinger_t* self);

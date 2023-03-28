@@ -42,6 +42,11 @@ We added the following:
 #include "position_controller.h"
 #include "controller_mellinger.h"
 #include "physicalConstants.h"
+#include "debug.h"
+#include <stdint.h>
+
+#define PI ((float) 3.14159265)
+#define gamma ((float) .95)
 
 // Global state variable used in the
 // firmware as the only instance and in bindings
@@ -55,22 +60,23 @@ static controllerMellinger_t g_self = {
   .kd_xy = 0.2,       // D
   .ki_xy = 0.05,      // I
   .i_range_xy = 2.0,
+  
 
   // Z Position
-  .kp_z = 1.25,       // P
+  .kp_z = .8,       // P
   .kd_z = 0.4,        // D
   .ki_z = 0.05,       // I
   .i_range_z  = 0.4,
 
   // Attitude
-  .kR_xy = 70000, // P
-  .kw_xy = 20000, // D
+  .kR_xy = 0, // P
+  .kw_xy = .01, // D
   .ki_m_xy = 0.0, // I
   .i_range_m_xy = 1.0,
 
   // Yaw
-  .kR_z = 60000, // P
-  .kw_z = 12000, // D
+  .kR_z = 1, // P
+  .kw_z = .04, // D
   .ki_m_z = 500, // I
   .i_range_m_z  = 1500,
 
@@ -97,6 +103,13 @@ void controllerMellingerReset(controllerMellinger_t* self)
   self->i_error_m_x = 0;
   self->i_error_m_y = 0;
   self->i_error_m_z = 0;
+  self->pitch = 0;
+  self->roll = 0;
+  
+  self->bicoptermode = 0;
+  self->groundasl = -1;
+  self->setasl = -1;
+  self->baseYaw = 0;
 }
 
 void controllerMellingerInit(controllerMellinger_t* self)
@@ -117,6 +130,327 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
                                          const state_t *state,
                                          const uint32_t tick)
 {
+
+  if (setpoint->bicopter.mode == 2){ 
+    /******************************************************************
+    using sausage controls
+    ******************************************************************/
+    float height = state->position.z;
+    if (self->bicoptermode != 2) {
+      
+      //desiredYawrate = setpoint->sausage.tauz  ;//+ stateAttitudeRateYaw * (float)0.01;
+      //desiredRoll = setpoint->sausage.taux;
+      self->bicoptermode = 2;
+      self->groundasl = height; 
+      self->yawrate = radians(sensors->gyro.z);
+      self->rollrate = radians(sensors->gyro.x);
+      self->setasl = height; 
+      self->zrate = state->velocity.z;
+      self->pitch = radians(state->attitude.pitch);
+      self->roll = radians(state->attitude.roll);
+    }
+    float lx = 1;//.60; //(.6 is for 2 on 2 sides, 1 is for 1 on 4 sides)
+    float ly = 1;
+
+    if (!RATE_DO_EXECUTE(ATTITUDE_RATE, tick)) {
+      return;
+    }
+    self->setasl = self->setasl * gamma + height * (1-gamma);
+    self->zrate = self->zrate * gamma + state->velocity.z * (1-gamma);
+    self->pitch = self->pitch * gamma + radians(state->attitude.pitch) * (1-gamma);
+    self->roll = self->roll * gamma + radians(state->attitude.roll)* (1-gamma);
+
+    self->yawrate = self->yawrate * gamma + radians(sensors->gyro.z) * (1-gamma);
+    self->rollrate = self->rollrate * gamma + radians(sensors->gyro.x) * (1-gamma);
+    //float dt = (float)(1.0f/ATTITUDE_RATE);
+    float tempz = (self->groundasl - self->setasl + setpoint->sausage.absz)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
+    float desiredYawrate = setpoint->sausage.tauz * g_self.kR_z + self->yawrate*g_self.kw_z;
+    float desiredRoll = setpoint->sausage.taux - state->attitude.roll*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
+    float cosr = (float) cos(self->roll);
+    float sinr = (float) sin(self->roll);
+    float cosp = (float) cos(self->pitch);
+    float sinp = (float) sin(self->pitch);
+    
+    float tfx = setpoint->sausage.fx*(cosr- sinr)/2 + 
+                setpoint->sausage.fy*sinp*sinr/2 +
+                tempz*(cosr-cosp*sinr)/2;
+    float tfy = setpoint->sausage.fy*cosp/2 + tempz*sinp/2;
+    float tfz = -1* setpoint->sausage.fy*cosr*sinp/2+ 
+                setpoint->sausage.fx * (cosr+ sinr)/2+
+                tempz*(cosp*cosr+sinr)/2;
+
+
+    float fx = clamp(tfx, -3.5, 3.5);
+    float fy = clamp(tfy, -3.5, 3.5);
+    float fz = clamp(tfz,0,4);
+    float tx = clamp(desiredRoll,-1, 1); //tau x
+    float ty = clamp(setpoint->sausage.tauy,-1, 1); //tau y
+    float tz = clamp(desiredYawrate,-1, 1); //tau z
+    int id = setpoint->sausage.id;
+
+    float f1;
+    float f2;
+    float t1;
+    float t2;
+
+    float term1 = lx*lx*ly*ly;
+    
+
+    if (id == 1){// f1, f2, t1, t2
+      lx = .6;
+      float term2 = fz*lx*ly + lx*tx;
+      float term3 = lx*lx*(float)pow(-fx*ly + tz, 2);
+      f1 = (float)sqrt(((float)pow(term2 - ly*ty, 2) + term3)/term1)/4;
+      f2 = (float)sqrt(((float)pow(term2 + ly*ty, 2) + term3)/term1)/4;
+
+      t1 = atan2(fz/4 + tx/(4*ly)-ty/(4*lx), fx/4-tz/(4*ly));
+      t2 = atan2(fz/4 + tx/(4*ly)+ty/(4*lx), fx/4-tz/(4*ly));
+
+      while (t1 < 0) {
+        t1 = t1 + 2 * PI;
+      }
+      while (t1 > 2*PI) {
+        t1 = t1 - 2 * PI;
+      }
+      while (t2 < 0) {
+        t2 = t2 + 2 * PI;
+      }
+      while (t2 > 2*PI) {
+        t2 = t2 - 2 * PI;
+      }
+      
+      control->bicopter.s1 = clamp(t1, 0, PI);// cant handle values between PI and 2PI
+      control->bicopter.s2 = PI - clamp(t2, 0, PI);
+      
+    } else if (id == 2){// f3, f4, t3, t4
+      lx = .6;
+      float term2 = - fz*lx*ly + lx*tx;
+      float term3 = lx*lx*(float)pow(fx*ly + tz, 2);
+      
+      f1 = (float)sqrt(((float)pow(term2 + ly*ty, 2) + term3)/term1)/4;
+      f2 = (float)sqrt(((float)pow(-term2 + ly*ty, 2) + term3)/term1)/4;
+
+    
+      t1 = atan2(fz/4 - tx/(4*ly)-ty/(4*lx), fx/4+tz/(4*ly));
+      t2 = atan2(fz/4 - tx/(4*ly)+ty/(4*lx), fx/4+tz/(4*ly));
+
+      while (t1 < 0) {
+        t1 = t1 + 2 * PI;
+      }
+      while (t1 > 2*PI) {
+        t1 = t1 - 2 * PI;
+      }
+      while (t2 < 0) {
+        t2 = t2 + 2 * PI;
+      }
+      while (t2 > 2*PI) {
+        t2 = t2 - 2 * PI;
+      }
+      control->bicopter.s1 = PI - clamp(t1, 0, PI);// cant handle values between PI and 2PI
+      control->bicopter.s2 = clamp(t2, 0, PI);
+
+    } else if (id == 3) {
+      float lx2ly2 = lx*lx+ly*ly;
+      
+      f1 = (float)sqrt((float)pow(fz-(2*ty/lx), 2) + 4* (float)pow(fy+(lx*tz)/lx2ly2,2))/4;
+      f2 = (float)sqrt((float)pow(fz+(2*tx/ly), 2) + 4* (float)pow(fx-(ly*tz)/lx2ly2,2))/4;
+
+    
+      t1 = atan2((fz- (2*ty)/lx)/4, (fy+(lx*tz)/lx2ly2));
+      t2 = atan2((fz+ (2*tx)/ly)/4, (fx-(ly*tz)/lx2ly2));
+
+      while (t1 < 0) {
+        t1 = t1 + 2 * PI;
+      }
+      while (t1 > 2*PI) {
+        t1 = t1 - 2 * PI;
+      }
+      while (t2 < 0) {
+        t2 = t2 + 2 * PI;
+      }
+      while (t2 > 2*PI) {
+        t2 = t2 - 2 * PI;
+      }
+      control->bicopter.s1 = PI - clamp(t1, 0, PI);// cant handle values between PI and 2PI
+      control->bicopter.s2 = clamp(t2, 0, PI);
+    } else if (id == 4) {
+      float lx2ly2 = lx*lx+ly*ly;
+      
+      f1 = (float)sqrt((float)pow(fz+(2*ty/lx), 2) + 4* (float)pow(fy-(lx*tz)/lx2ly2,2))/4;
+      f2 = (float)sqrt((float)pow(fz-(2*tx/ly), 2) + 4* (float)pow(fx+(ly*tz)/lx2ly2,2))/4;
+
+    
+      t1 = atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lx2ly2));
+      t2 = atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lx2ly2));
+
+      while (t1 < 0) {
+        t1 = t1 + 2 * PI;
+      }
+      while (t1 > 2*PI) {
+        t1 = t1 - 2 * PI;
+      }
+      while (t2 < 0) {
+        t2 = t2 + 2 * PI;
+      }
+      while (t2 > 2*PI) {
+        t2 = t2 - 2 * PI;
+      }
+      control->bicopter.s1 = PI - clamp(t1, 0, PI);// cant handle values between PI and 2PI
+      control->bicopter.s2 = clamp(t2, 0, PI);
+    } else {
+      return;
+    }
+
+    control->bicopter.m1 = clamp(f1, 0, 1);
+    control->bicopter.m2 = clamp(f2, 0, 1);
+
+
+
+
+    
+    if (tick % 10000 == 0) {
+    DEBUG_PRINT("(input)%f, %f, %f, %f, %f \n(t1,t2,f1,f2)%f, %f, %f, %f\n(desireyaw,pitch,roll)%f, %f, %f\n\n", 
+          (double)fx, (double)fz, (double)tx, (double)ty, (double)tz,
+           (double)t1, (double)t2, (double)f1, (double)f2,
+           (double)desiredYawrate, (double)self->pitch, (double)self->roll);
+    }
+
+  }
+  else if (true){    
+    /******************************************************************
+    using bicopter controls
+    ******************************************************************/
+    float l = .15;
+
+    if (!RATE_DO_EXECUTE(ATTITUDE_RATE, tick)) {
+      return;
+    }
+    float dt = (float)(1.0f/ATTITUDE_RATE);
+
+    //float stateAttitudeRateRoll = radians(sensors->gyro.x);
+    //float stateAttitudeRatePitch = -radians(sensors->gyro.y);
+    //float stateAttitudeRateYaw = radians(sensors->gyro.z) * (float)0.1;
+    float tempz = 0;
+    float desiredYawrate = 0;
+    float desiredRoll = 0;
+
+    //float stateAttitudeRateYaw = radians(sensors->gyro.z);
+    
+    if ((setpoint->bicopter.mode == 0)){ //full control
+        self->bicoptermode = 0;
+        tempz = setpoint->bicopter.fz;
+        desiredYawrate = setpoint->bicopter.tauz  ;//+ stateAttitudeRateYaw * (float)0.01;
+        desiredRoll = setpoint->bicopter.taux;
+    } else {
+      if  (self->bicoptermode == 0) { //auto control features
+        float height = state->position.z;//sensors->baro.asl;//altitiude above sea level
+        self->bicoptermode = 1;
+        self->groundasl = height; 
+        self->setasl = height;
+        self->baseYaw = state->attitude.yaw;
+        self->yawrate = radians(sensors->gyro.z);
+        self->rollrate = radians(sensors->gyro.x);
+        self->zrate = state->velocity.z;
+      
+      } else {
+        float height = state->position.z;//sensors->baro.asl;//altitiude above sea level
+        self->setasl = self->setasl * gamma + height * (1-gamma); //gets the sort of average over past 20 time steps gamma = .95
+        self->yawrate = self->yawrate * gamma + radians(sensors->gyro.z) * (1-gamma);
+        self->rollrate = self->rollrate * gamma + radians(sensors->gyro.x) * (1-gamma);
+        self->zrate = self->zrate * gamma + state->velocity.z * (1-gamma);
+        self->baseYaw += setpoint->bicopter.tauz * dt;
+      //max out z is going to be 1.5
+      }
+      while( self->baseYaw > 2*PI){
+        self->baseYaw += -2*PI;
+      }
+      while( self->baseYaw < 0){
+        self->baseYaw += 2*PI;
+      }
+      float tempYaw = state->attitude.yaw;
+
+      while( tempYaw > 2*PI){
+        tempYaw+= -2*PI;
+      }
+      while( tempYaw< 0){
+        tempYaw+= 2*PI;
+      }
+      tempz = (self->groundasl - self->setasl + setpoint->bicopter.absz)* g_self.kp_z - (self->zrate) * g_self.kd_z ;
+      //desiredYawrate = (self->baseYaw - tempYaw)*(float).002;
+
+      desiredYawrate = setpoint->bicopter.tauz * g_self.kR_z + self->yawrate* g_self.kw_z; //.04
+      desiredRoll = setpoint->bicopter.taux - state->attitude.roll*g_self.kR_xy - self->rollrate *g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
+
+    }
+
+
+    float fx = clamp(setpoint->bicopter.fx, -1 , 1);//setpoint->bicopter.fx;
+    float fz = clamp(tempz, 0 , 1.5);//setpoint->bicopter.fz;
+    float taux = clamp(desiredRoll, -l + (float)0.01 , l - (float) 0.01);
+    float tauz = clamp(desiredYawrate, -.1 , .1);// limit should be .25 setpoint->bicopter.tauz; //- stateAttitudeRateYaw
+
+    float term1 = l*l*fx*fx + l*l*fz*fz + taux*taux + tauz*tauz;
+    float term2 = 2*fz*l*taux - 2*fx*l*tauz;
+    float term3 = sqrt(term1+term2);
+    float term4 = sqrt(term1-term2);
+
+    float f1 = term3/(2*l); // in unknown units
+    float f2 = term4/(2*l);
+    float t1 = PI/2;
+    float t2 = PI/2;
+    if ((f1 != 0) || (f2 != 0)) {
+      t1 = atan2((fz*l - taux)/term3, (fx*l + tauz)/term3 );// in radians
+      t2 = atan2((fz*l + taux)/term4, (fx*l - tauz)/term4 );
+    }
+  
+    while (t1 < 0) {
+      t1 = t1 + 2 * PI;
+    }
+    while (t1 > 2*PI) {
+      t1 = t1 - 2 * PI;
+    }
+    while (t2 < 0) {
+      t2 = t2 + 2 * PI;
+    }
+    while (t2 > 2*PI) {
+      t2 = t2 - 2 * PI;
+    }
+    
+    control->bicopter.s1 = clamp(t1, 0, PI);// cant handle values between PI and 2PI
+    control->bicopter.s2 = clamp(t2, 0, PI);
+    control->bicopter.m1 = clamp(f1, 0, 1);
+    control->bicopter.m2 = clamp(f2, 0, 1);
+    /*
+    if (tick % 10000 == 0) {
+    DEBUG_PRINT("(mel)%f, %f, %f, %f \n(ssmm)%f, %f, %f, %f\n(altitude)%f, %f, %f, %f\n(mode)%d, %d\n\n", 
+          (double)fx, (double)fz, (double)taux, (double)tauz,
+           (double)t1, (double)t2, (double)f1, (double)f2,
+           (double)self->baseYaw, (double)state->attitude.yaw, (double)dt, (double)state->attitude.roll,
+           setpoint->bicopter.mode, self->bicoptermode);
+    }*/
+  
+  }  //shortcutting the melinger to direct outputs
+  else if (false){
+  control->roll = setpoint->manual.m1;
+  control->pitch = setpoint->manual.m2;
+  control->yaw = setpoint->manual.m3;
+  control->thrust = setpoint->manual.m4;
+
+  control->manual.m1 = setpoint->manual.m1;
+  control->manual.m2 = setpoint->manual.m2;
+  control->manual.m3 = setpoint->manual.m3;
+  control->manual.m4 = setpoint->manual.m4;
+
+  self->cmd_roll = control->roll;
+  self->cmd_pitch = control->pitch;
+  self->cmd_yaw = control->yaw;
+  self->cmd_thrust = control->thrust;
+  //DEBUG_PRINT("(pos)%f, %f, %f, %f\n", (double)setpoint->position.x,(double)setpoint->position.y,(double)setpoint->position.z,(double)setpoint->thrust);
+  
+  //DEBUG_PRINT("(vels)%f, %f, %f, %f\n", (double)setpoint->attitude.roll,(double)setpoint->attitude.pitch,(double)setpoint->attitude.yaw,(double)setpoint->thrust);
+  } else {
+    
+
   struct vec r_error;
   struct vec v_error;
   struct vec target_thrust;
@@ -311,6 +645,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     self->cmd_yaw = control->yaw;
 
     controllerMellingerReset(self);
+  }
   }
 }
 
