@@ -220,7 +220,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       }
       
       control->bicopter.s1 = 1 - clamp(t1/PI, 0, 1);// cant handle values between PI and 2PI
-      control->bicopter.s2 = 1 - clamp(t2/PI, 0, 1);
+      control->bicopter.s2 = 1 - clamp(t2/PI, 0, 1);//
       
     } else if (id == 2){// f3, f4, t3, t4
       lx = .6;
@@ -416,8 +416,8 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       t2 = t2 - 2 * PI;
     }
     
-    control->bicopter.s1 = 1 - clamp(t1/PI, 0, 1);// cant handle values between PI and 2PI
-    control->bicopter.s2 = clamp(t2/PI, 0, 1);
+    control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+    control->bicopter.s2 = clamp(t2, 0, PI*3/2)/(PI*3/2);
     control->bicopter.m1 = clamp(f1, 0, 1);
     control->bicopter.m2 = clamp(f2, 0, 1);
     /*

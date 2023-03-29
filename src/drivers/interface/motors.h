@@ -144,10 +144,10 @@
  * For the WK-P0043 servo, I found the minimum to be .6ms and maximum to be 2.4ms
  * In motors.c the motorsBLConv16ToBits function was changed in order to set the minimum and range to the new setup
  */
-  #define BLMC_PERIOD 0.0025   // 2.5ms = 400Hz
-  #define SERVO_PERIOD 0.0025   // sets the lowest duty cycle length
-  #define SERVO_MINIMUM 0.0006   // sets the lowest duty cycle length
-  #define SERVO_RANGE 0.0018   // sets the lowest duty cycle length
+  #define BLMC_PERIOD 0.0030   // 2.5ms = 400Hz
+  #define SERVO_PERIOD 0.0030   // sets the lowest duty cycle length
+  #define SERVO_MINIMUM 0.000450   // sets the lowest duty cycle length
+  #define SERVO_RANGE 0.0021   // sets the lowest duty cycle length
   #define MOTORS_HIGH_PERIOD_ZERO  0.001 // sets the range of the duty cycle 
 
   #define MOTORS_BL_PWM_PRESCALE_RAW   (uint32_t)((TIM_CLOCK_HZ/0xFFFF) * BLMC_PERIOD + 1) // +1 is to not end up above 0xFFFF in the end
