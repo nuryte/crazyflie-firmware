@@ -351,12 +351,16 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
         self->yawrate = radians(sensors->gyro.z);
         self->rollrate = radians(sensors->gyro.x);
         self->zrate = state->velocity.z;
+        self->pitch = radians(state->attitude.pitch);
+        self->roll = radians(state->attitude.roll);
       
       } else {
         float height = state->position.z;//sensors->baro.asl;//altitiude above sea level
         self->setasl = self->setasl * gamma + height * (1-gamma); //gets the sort of average over past 20 time steps gamma = .95
         self->yawrate = self->yawrate * gamma + radians(sensors->gyro.z) * (1-gamma);
         self->rollrate = self->rollrate * gamma + radians(sensors->gyro.x) * (1-gamma);
+        self->pitch = self->pitch * gamma + radians(state->attitude.pitch) * (1-gamma);
+        self->roll = self->roll * gamma + radians(state->attitude.roll)* (1-gamma);
         self->zrate = self->zrate * gamma + state->velocity.z * (1-gamma);
         self->baseYaw += setpoint->bicopter.tauz * dt;
       //max out z is going to be 1.5
@@ -383,9 +387,19 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
     }
 
+    float cosr = (float) cos(self->roll);
+    //float sinr = (float) sin(self->roll);
+    float cosp = (float) cos(self->pitch);
+    float sinp = (float) sin(self->pitch);
+    
+    float tfx = setpoint->bicopter.fx*cosp + tempz*sinp;
+    //float tfy = fy*cosp/2 + tempz*sinp/2;
+    float tfz = (setpoint->bicopter.fx*sinp + tempz * cosp)/cosr;
 
-    float fx = clamp(setpoint->bicopter.fx, -1 , 1);//setpoint->bicopter.fx;
-    float fz = clamp(tempz, 0 , 1.5);//setpoint->bicopter.fz;
+
+
+    float fx = clamp(tfx, -1 , 1);//setpoint->bicopter.fx;
+    float fz = clamp(tfz, 0 , 1.5);//setpoint->bicopter.fz;
     float taux = clamp(desiredRoll, -l + (float)0.01 , l - (float) 0.01);
     float tauz = clamp(desiredYawrate, -.1 , .1);// limit should be .25 setpoint->bicopter.tauz; //- stateAttitudeRateYaw
 
@@ -420,14 +434,14 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     control->bicopter.s2 = clamp(t2, 0, PI*3/2)/(PI*3/2);
     control->bicopter.m1 = clamp(f1, 0, 1);
     control->bicopter.m2 = clamp(f2, 0, 1);
-    /*
+    
     if (tick % 10000 == 0) {
-    DEBUG_PRINT("(mel)%f, %f, %f, %f \n(ssmm)%f, %f, %f, %f\n(altitude)%f, %f, %f, %f\n(mode)%d, %d\n\n", 
+    DEBUG_PRINT("(mel)%f, %f, %f, %f \n(ssmm)%f, %f, %f, %f\n(atitude)r%f, p%f, %f, %f\n(mode)%d, %d\n\n", 
           (double)fx, (double)fz, (double)taux, (double)tauz,
            (double)t1, (double)t2, (double)f1, (double)f2,
-           (double)self->baseYaw, (double)state->attitude.yaw, (double)dt, (double)state->attitude.roll,
+           (double)self->roll, (double)self->pitch, (double)dt, (double)state->attitude.roll,
            setpoint->bicopter.mode, self->bicoptermode);
-    }*/
+    }
   
   }  //shortcutting the melinger to direct outputs
   else if (false){
