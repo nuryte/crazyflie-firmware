@@ -1,5 +1,10 @@
 # Crazyflie Firmware  [![CI](https://github.com/bitcraze/crazyflie-firmware/workflows/CI/badge.svg)](https://github.com/bitcraze/crazyflie-firmware/actions?query=workflow%3ACI)
 
+This is a fork of the original firmware for Crazyflie, meant to be used by AIRLab at Lehigh University. Some changes (current and proposed) include:
+- changing PWM signals to be used with both servos and motors
+- implementing the new control scheme for both a bicopter drone, and a quadcopter drone, where each motor is attached to a 270 servo.
+  - files in mellinger controller have been modified in order to accomplish this
+- added openMV support for uart communication
 This project contains the source code for the firmware used in the Crazyflie range of platforms, including the Crazyflie 2.X and the Roadrunner.
 
 ### Crazyflie 1.0 support
