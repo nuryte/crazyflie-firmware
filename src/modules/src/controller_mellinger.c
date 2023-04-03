@@ -144,6 +144,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       self->groundasl = height; 
       self->yawrate = radians(sensors->gyro.z);
       self->rollrate = radians(sensors->gyro.x);
+      self->pitchrate = radians(sensors->gyro.y);
       self->setasl = height; 
       self->zrate = state->velocity.z;
       self->pitch = radians(state->attitude.pitch);
@@ -162,14 +163,17 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
     self->yawrate = self->yawrate * gamma + radians(sensors->gyro.z) * (1-gamma);
     self->rollrate = self->rollrate * gamma + radians(sensors->gyro.x) * (1-gamma);
+    self->pitchrate = self->pitchrate * gamma + radians(sensors->gyro.y) * (1-gamma);
     //float dt = (float)(1.0f/ATTITUDE_RATE);
     float tempz = (self->groundasl - self->setasl + setpoint->sausage.absz)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
     float desiredYawrate = setpoint->sausage.tauz * g_self.kR_z + self->yawrate*g_self.kw_z;
     float desiredRoll = setpoint->sausage.taux - state->attitude.roll*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
-    float cosr = (float) cos(self->roll);
-    float sinr = (float) sin(self->roll);
-    float cosp = (float) cos(self->pitch);
-    float sinp = (float) sin(self->pitch);
+    float desiredPitch = setpoint->sausage.tauy - state->attitude.pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
+    
+    float cosr = (float) cos(-self->roll);
+    float sinr = (float) sin(-self->roll);
+    float cosp = (float) cos(-self->pitch);
+    float sinp = (float) sin(-self->pitch);
     
     float tfx = setpoint->sausage.fx*(cosr- sinr)/2 + 
                 setpoint->sausage.fy*sinp*sinr/2 +
@@ -178,20 +182,26 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     float tfz = -1* setpoint->sausage.fy*cosr*sinp/2+ 
                 setpoint->sausage.fx * (cosr+ sinr)/2+
                 tempz*(cosp*cosr+sinr)/2;
+    tfx = setpoint->sausage.fx;
+    tfy = setpoint->sausage.fy;
+    tfz = setpoint->sausage.absz;
+    desiredRoll = setpoint->sausage.taux;
+    desiredPitch = setpoint->sausage.tauy;
+    desiredYawrate = setpoint->sausage.tauz;
 
 
     float fx = clamp(tfx, -3.5, 3.5);
     float fy = clamp(tfy, -3.5, 3.5);
-    float fz = clamp(tfz,0,4);
+    float fz = clamp(tfz,-1,4);
     float tx = clamp(desiredRoll,-1, 1); //tau x
-    float ty = clamp(setpoint->sausage.tauy,-1, 1); //tau y
+    float ty = clamp(desiredPitch,-1, 1); //tau y
     float tz = clamp(desiredYawrate,-1, 1); //tau z
     int id = setpoint->sausage.id;
 
-    float f1;
-    float f2;
-    float t1;
-    float t2;
+    float f1 = 0;
+    float f2 = 0;
+    float t1 = 0;
+    float t2 = 0;
 
     float term1 = lx*lx*ly*ly;
     
@@ -206,21 +216,21 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       t1 = atan2(fz/4 + tx/(4*ly)-ty/(4*lx), fx/4-tz/(4*ly));
       t2 = atan2(fz/4 + tx/(4*ly)+ty/(4*lx), fx/4-tz/(4*ly));
 
-      while (t1 < 0) {
+      while (t1 < -PI/4) {
         t1 = t1 + 2 * PI;
       }
-      while (t1 > 2*PI) {
+      while (t1 > 2*PI-PI/4) {
         t1 = t1 - 2 * PI;
       }
-      while (t2 < 0) {
+      while (t2 < -PI/4) {
         t2 = t2 + 2 * PI;
       }
-      while (t2 > 2*PI) {
+      while (t2 > 2*PI-PI/4) {
         t2 = t2 - 2 * PI;
       }
       
-      control->bicopter.s1 = 1 - clamp(t1/PI, 0, 1);// cant handle values between PI and 2PI
-      control->bicopter.s2 = 1 - clamp(t2/PI, 0, 1);//
+      control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = clamp(t2, 0, PI*3/2)/(PI*3/2);
       
     } else if (id == 2){// f3, f4, t3, t4
       lx = .6;
@@ -234,20 +244,20 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       t1 = atan2(fz/4 - tx/(4*ly)-ty/(4*lx), fx/4+tz/(4*ly));
       t2 = atan2(fz/4 - tx/(4*ly)+ty/(4*lx), fx/4+tz/(4*ly));
 
-      while (t1 < 0) {
+      while (t1 < -PI/4) {
         t1 = t1 + 2 * PI;
       }
-      while (t1 > 2*PI) {
+      while (t1 > 2*PI-PI/4) {
         t1 = t1 - 2 * PI;
       }
-      while (t2 < 0) {
+      while (t2 < -PI/4) {
         t2 = t2 + 2 * PI;
       }
-      while (t2 > 2*PI) {
+      while (t2 > 2*PI-PI/4) {
         t2 = t2 - 2 * PI;
       }
-      control->bicopter.s1 = 1 - clamp(t1/PI, 0, 1);// cant handle values between PI and 2PI
-      control->bicopter.s2 = clamp(t2, 0, PI);
+      control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = clamp(t2, 0, PI*3/2)/(PI*3/2);
 
     } else if (id == 3) {
       float lx2ly2 = lx*lx+ly*ly;
@@ -259,44 +269,59 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       t1 = atan2((fz- (2*ty)/lx)/4, (fy+(lx*tz)/lx2ly2));
       t2 = atan2((fz+ (2*tx)/ly)/4, (fx-(ly*tz)/lx2ly2));
 
-      while (t1 < 0) {
+      while (t1 < -PI/4) {
         t1 = t1 + 2 * PI;
       }
-      while (t1 > 2*PI) {
+      while (t1 > 2*PI-PI/4) {
         t1 = t1 - 2 * PI;
       }
-      while (t2 < 0) {
+      while (t2 < -PI/4) {
         t2 = t2 + 2 * PI;
       }
-      while (t2 > 2*PI) {
+      while (t2 > 2*PI-PI/4) {
         t2 = t2 - 2 * PI;
       }
-      control->bicopter.s1 = clamp(t1/PI, 0, 1);// cant handle values between PI and 2PI
-      control->bicopter.s2 = clamp(t2, 0, 1);
+      control->bicopter.s1 = 1- clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = 1- clamp(t2, 0, PI*3/2)/(PI*3/2);
     } else if (id == 4) {
       float lx2ly2 = lx*lx+ly*ly;
       
-      f1 = (float)sqrt((float)pow(fz+(2*ty/lx), 2) + 4* (float)pow(fy-(lx*tz)/lx2ly2,2))/4;
-      f2 = (float)sqrt((float)pow(fz-(2*tx/ly), 2) + 4* (float)pow(fx+(ly*tz)/lx2ly2,2))/4;
+      f2 = (float)sqrt((float)pow(fz+(2*ty/lx), 2) + 4* (float)pow(fy-(lx*tz)/lx2ly2,2))/4;
+      f1 = (float)sqrt((float)pow(fz-(2*tx/ly), 2) + 4* (float)pow(fx+(ly*tz)/lx2ly2,2))/4;
 
     
-      t1 = atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lx2ly2));
-      t2 = atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lx2ly2));
+      t2 = atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lx2ly2));
+      t1 = atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lx2ly2));
 
-      while (t1 < 0) {
+      while (t1 < -PI/4) {
         t1 = t1 + 2 * PI;
       }
-      while (t1 > 2*PI) {
+      while (t1 > 2*PI-PI/4) {
         t1 = t1 - 2 * PI;
       }
-      while (t2 < 0) {
+      while (t2 < -PI/4) {
         t2 = t2 + 2 * PI;
       }
-      while (t2 > 2*PI) {
+      while (t2 > 2*PI-PI/4) {
         t2 = t2 - 2 * PI;
       }
-      control->bicopter.s1 = clamp(t1/PI, 0, 1);// cant handle values between PI and 2PI
-      control->bicopter.s2 = clamp(t2, 0, 1);
+
+      control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
+    } else if (id == 5){
+      t1 = PI/2;
+      t2 = PI/2;
+      control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
+      f1 = 0;
+      f2 = 0;
+    } else if (id == 6){
+      t1 = PI/2;
+      t2 = PI/2;
+      control->bicopter.s1 = 1- clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = 1 -clamp(t2, 0, PI*3/2)/(PI*3/2);
+      f1 = 0;
+      f2 = 0;
     } else {
       return;
     }
@@ -320,7 +345,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     /******************************************************************
     using bicopter controls
     ******************************************************************/
-    float l = .15;
+    float l = .3;
 
     if (!RATE_DO_EXECUTE(ATTITUDE_RATE, tick)) {
       return;
@@ -387,10 +412,10 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
     }
 
-    float cosr = (float) cos(self->roll);
+    float cosr = (float) cos(-self->roll);
     //float sinr = (float) sin(self->roll);
-    float cosp = (float) cos(self->pitch);
-    float sinp = (float) sin(self->pitch);
+    float cosp = (float) cos(-self->pitch);
+    float sinp = (float) sin(-self->pitch);
     
     float tfx = setpoint->bicopter.fx*cosp + tempz*sinp;
     //float tfy = fy*cosp/2 + tempz*sinp/2;
@@ -399,7 +424,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
 
     float fx = clamp(tfx, -1 , 1);//setpoint->bicopter.fx;
-    float fz = clamp(tfz, 0 , 1.5);//setpoint->bicopter.fz;
+    float fz = clamp(tfz, -.2 , 1.5);//setpoint->bicopter.fz;
     float taux = clamp(desiredRoll, -l + (float)0.01 , l - (float) 0.01);
     float tauz = clamp(desiredYawrate, -.1 , .1);// limit should be .25 setpoint->bicopter.tauz; //- stateAttitudeRateYaw
 
@@ -417,16 +442,16 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       t2 = atan2((fz*l + taux)/term4, (fx*l - tauz)/term4 );
     }
   
-    while (t1 < 0) {
+    while (t1 < -PI/4) {
       t1 = t1 + 2 * PI;
     }
-    while (t1 > 2*PI) {
+    while (t1 > 2*PI-PI/4) {
       t1 = t1 - 2 * PI;
     }
-    while (t2 < 0) {
+    while (t2 < -PI/4) {
       t2 = t2 + 2 * PI;
     }
-    while (t2 > 2*PI) {
+    while (t2 > 2*PI-PI/4) {
       t2 = t2 - 2 * PI;
     }
     

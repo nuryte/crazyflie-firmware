@@ -93,6 +93,7 @@ typedef struct {
     float baseYaw;
     float yawrate;
     float rollrate;
+    float pitchrate;
     float roll;
     float pitch;
 } controllerMellinger_t;
