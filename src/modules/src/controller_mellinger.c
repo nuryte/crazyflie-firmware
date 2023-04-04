@@ -165,7 +165,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     self->rollrate = self->rollrate * gamma + radians(sensors->gyro.x) * (1-gamma);
     self->pitchrate = self->pitchrate * gamma + radians(sensors->gyro.y) * (1-gamma);
     //float dt = (float)(1.0f/ATTITUDE_RATE);
-    float tempz = (self->groundasl - self->setasl + setpoint->sausage.absz)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
+    float tempz = setpoint->sausage.absz + (self->groundasl - self->setasl)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
     float desiredYawrate = setpoint->sausage.tauz * g_self.kR_z + self->yawrate*g_self.kw_z;
     float desiredRoll = setpoint->sausage.taux - state->attitude.roll*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
     float desiredPitch = setpoint->sausage.tauy - state->attitude.pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
@@ -184,10 +184,10 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
                 tempz*(cosp*cosr+sinr)/2;
     tfx = setpoint->sausage.fx;
     tfy = setpoint->sausage.fy;
-    tfz = setpoint->sausage.absz;
-    desiredRoll = setpoint->sausage.taux;
-    desiredPitch = setpoint->sausage.tauy;
-    desiredYawrate = setpoint->sausage.tauz;
+    tfz = tempz;//setpoint->sausage.absz;
+    //desiredRoll = setpoint->sausage.taux;
+    //desiredPitch = setpoint->sausage.tauy;
+    //desiredYawrate = setpoint->sausage.tauz;
 
 
     float fx = clamp(tfx, -3.5, 3.5);
@@ -262,12 +262,12 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     } else if (id == 3) {
       float lx2ly2 = lx*lx+ly*ly;
       
-      f1 = (float)sqrt((float)pow(fz-(2*ty/lx), 2) + 4* (float)pow(fy+(lx*tz)/lx2ly2,2))/4;
-      f2 = (float)sqrt((float)pow(fz+(2*tx/ly), 2) + 4* (float)pow(fx-(ly*tz)/lx2ly2,2))/4;
+      f2 = (float)sqrt((float)pow(fz-(2*ty/lx), 2) + 4* (float)pow(fy+(lx*tz)/lx2ly2,2))/4;
+      f1 = (float)sqrt((float)pow(fz+(2*tx/ly), 2) + 4* (float)pow(fx-(ly*tz)/lx2ly2,2))/4;
 
     
-      t1 = atan2((fz- (2*ty)/lx)/4, (fy+(lx*tz)/lx2ly2));
-      t2 = atan2((fz+ (2*tx)/ly)/4, (fx-(ly*tz)/lx2ly2));
+      t2 = atan2((fz- (2*ty)/lx)/4, (fy+(lx*tz)/lx2ly2));
+      t1 = atan2((fz+ (2*tx)/ly)/4, (fx-(ly*tz)/lx2ly2));
 
       while (t1 < -PI/4) {
         t1 = t1 + 2 * PI;
@@ -282,7 +282,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
         t2 = t2 - 2 * PI;
       }
       control->bicopter.s1 = 1- clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
-      control->bicopter.s2 = 1- clamp(t2, 0, PI*3/2)/(PI*3/2);
+      control->bicopter.s2 =  clamp(t2, 0, PI*3/2)/(PI*3/2);
     } else if (id == 4) {
       float lx2ly2 = lx*lx+ly*ly;
       
@@ -306,19 +306,19 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
         t2 = t2 - 2 * PI;
       }
 
-      control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s1 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
       control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
     } else if (id == 5){
       t1 = PI/2;
       t2 = PI/2;
-      control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
-      control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
+      control->bicopter.s1 = 1-  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 =  clamp(t2, 0, PI*3/2)/(PI*3/2);
       f1 = 0;
       f2 = 0;
     } else if (id == 6){
       t1 = PI/2;
       t2 = PI/2;
-      control->bicopter.s1 = 1- clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s1 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
       control->bicopter.s2 = 1 -clamp(t2, 0, PI*3/2)/(PI*3/2);
       f1 = 0;
       f2 = 0;
