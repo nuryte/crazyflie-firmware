@@ -13,6 +13,7 @@
 #include "commander.h"
 #include "uart1.h"
 #include "motors.h"
+#include "semphr.h"
 
 #include <math.h>
 
@@ -25,17 +26,56 @@ openmv_state_t openmv_state;
 static bool isInit = false;
 static xTimerHandle timer;
 
-static void omvSetState(uint8_t target_x_byte,
-                        uint8_t target_y_byte,
-                        uint8_t target_z_byte)
+void omvGetState(openmv_state_t* s)
 {
-    memcpy(&openmv_state.target_x, &target_x_byte, 1);
-    memcpy(&openmv_state.target_y, &target_y_byte, 1);
-    memcpy(&openmv_state.target_z, &target_z_byte, 1);
+    // CRITICAL SECTION: this operation is atomic, cannot be interrupted
+    taskENTER_CRITICAL();
+    {
+        // copy state data
+        *s = openmv_state;
+    }
+    taskEXIT_CRITICAL();
+}
+
+/*static void omvSetStateFromBytes(uint8_t target_x_byte,
+                                 uint8_t target_y_byte,
+                                 uint8_t target_z_byte)
+{
+    // CRITICAL SECTION: this operation is atomic, cannot be interrupted
+    taskENTER_CRITICAL();
+    {
+        // memcpy(&openmv_state.target_x, &target_x_byte, 1);
+        // memcpy(&openmv_state.target_y, &target_y_byte, 1);
+        // memcpy(&openmv_state.target_z, &target_z_byte, 1);
+        // write state data
+        openmv_state.target_x = *(int8_t*) &target_x_byte;
+        openmv_state.target_y = *(int8_t*) &target_y_byte;
+        openmv_state.target_z = *(uint8_t*) &target_z_byte;
+    }
+    taskEXIT_CRITICAL();
     DEBUG_PRINT("OpenMV target: (%d, %d, %d)\n",
                 (int)openmv_state.target_x,
                 (int)openmv_state.target_y,
                 (unsigned int)openmv_state.target_z);
+}*/
+
+static void omvSetState(openmv_state_t* new_state)
+{
+    // CRITICAL SECTION: this operation is atomic, cannot be interrupted
+    taskENTER_CRITICAL();
+    {
+        openmv_state = *new_state;
+    }
+    taskEXIT_CRITICAL();
+
+    if (openmv_state.active) {
+        DEBUG_PRINT("OpenMV target enabled (%d, %d, %d)\n",
+                    (int)openmv_state.target_x,
+                    (int)openmv_state.target_y,
+                    (unsigned int)openmv_state.target_z);
+    } else {
+        DEBUG_PRINT("OpenMV target disabled\n");
+    }
 }
 
 static void omvTimer(xTimerHandle timer)
@@ -54,13 +94,13 @@ static void omvTimer(xTimerHandle timer)
         do {
             res = uart1GetDataWithTimeout(&buf[0], M2T(100));
             if (!res) {
-                DEBUG_PRINT("OMV: connection timed out (signature, first byte)\n");
+                //DEBUG_PRINT("omvTimer: connection timed out (signature, first byte)\n");
                 return;
             }
         } while (buf[0] != 0x69);
         res = uart1GetDataWithTimeout(&buf[1], M2T(100));
         if (!res) {
-            DEBUG_PRINT("OMV: connection timed out (signature, second byte)\n");
+            DEBUG_PRINT("omvTimer: connection timed out (signature, second byte)\n");
             return;
         }
     } while (buf[1] != 0x69);
@@ -68,10 +108,12 @@ static void omvTimer(xTimerHandle timer)
     for (int i = 2; i < sizeof(buf); i++) {
         res = uart1GetDataWithTimeout(&buf[i], M2T(100));
         if (!res) {
-            DEBUG_PRINT("OMV: connection timed out\n");
+            DEBUG_PRINT("omvTimer: connection timed out\n");
             return;
         }
     }
+
+    openmv_state_t new_state;
 
     // parse message
     switch (buf[2]) {
@@ -80,10 +122,18 @@ static void omvTimer(xTimerHandle timer)
     case 1: // set target setpoint
         //omvSetMotorSpeed(buf[2]);
         openmv_state.active = buf[3];
-        if (buf[3]) {
-            omvSetState(buf[4], buf[5], buf[6]);
-        } else {
-            DEBUG_PRINT("(Skipping...)\n");
+        if (buf[3]) { // if active (i.e. blob found)
+            new_state = (openmv_state_t) {
+                .active     = true,
+                .target_x   = *(int8_t*)    &buf[4],
+                .target_y   = *(int8_t*)    &buf[5],
+                .target_z   = *(uint8_t*)   &buf[6],
+            };
+            omvSetState(&new_state);
+        } else { // if not active
+            new_state.active = false;
+            omvSetState(&new_state);
+            //DEBUG_PRINT("(Skipping...)\n");
         }
         break;
     default:

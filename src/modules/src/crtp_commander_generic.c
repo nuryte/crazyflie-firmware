@@ -353,6 +353,7 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
   setpoint->sausage.tauy = values->vy/ 1000.0f;
   setpoint->sausage.tauz = values->vz/ 1000.0f;
   setpoint->sausage.id = values->ax/1000;
+  setpoint->sausage.flag = values->ay/1000;
 
   setpoint->bicopter.mode = 2;
   //DEBUG_PRINT("(FULLSTATE!!!) Please show here!): %f %d :\n", (double)setpoint->sausage.fz , setpoint->sausage.id);

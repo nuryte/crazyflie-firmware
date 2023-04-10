@@ -96,6 +96,7 @@ typedef struct {
     float pitchrate;
     float roll;
     float pitch;
+    float desiredHeight;
 } controllerMellinger_t;
 
 void controllerMellingerInit(controllerMellinger_t* self);
