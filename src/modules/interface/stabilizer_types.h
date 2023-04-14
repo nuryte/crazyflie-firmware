@@ -304,6 +304,7 @@ typedef struct setpoint_s {
     float taux;
     float tauy;
     float tauz;
+    int goZ;
     int id;
     int flag;
     float absz;

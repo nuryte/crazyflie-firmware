@@ -74,6 +74,13 @@ typedef struct {
     float i_error_m_y;
     float i_error_m_z;
 
+    float ballpfx;
+    float balldfx;
+    float ballpfz;
+    float balldfz;
+    float ballptz;
+    float balldtz;
+
     // Logging variables
     struct vec z_axis_desired;
 
@@ -97,6 +104,7 @@ typedef struct {
     float roll;
     float pitch;
     float desiredHeight;
+    float goalHeight;
 } controllerMellinger_t;
 
 void controllerMellingerInit(controllerMellinger_t* self);
