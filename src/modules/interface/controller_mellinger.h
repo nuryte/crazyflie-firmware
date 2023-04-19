@@ -104,6 +104,8 @@ typedef struct {
     float roll;
     float pitch;
     float desiredHeight;
+    float absRoll;
+    float absPitch;
     float goalHeight;
 } controllerMellinger_t;
 

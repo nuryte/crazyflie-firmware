@@ -67,15 +67,18 @@ static void omvSetState(openmv_state_t* new_state)
         openmv_state = *new_state;
     }
     taskEXIT_CRITICAL();
-
+    /**
     if (openmv_state.active) {
-        DEBUG_PRINT("OpenMV target enabled (%d, %d, %d)\n",
-                    (int)openmv_state.target_x,
-                    (int)openmv_state.target_y,
-                    (unsigned int)openmv_state.target_z);
+        DEBUG_PRINT("OpenMV xywhtf (%d, %d, %f, %d, %d, %d)\n",
+                    (int)openmv_state.x,
+                    (int)openmv_state.y,
+                    (double)1/openmv_state.w,
+                    (int)openmv_state.h,
+                    (int)openmv_state.t,
+                    (int)openmv_state.flag);
     } else {
         DEBUG_PRINT("OpenMV target disabled\n");
-    }
+    }*/
 }
 
 static void omvTimer(xTimerHandle timer)
@@ -94,7 +97,7 @@ static void omvTimer(xTimerHandle timer)
         do {
             res = uart1GetDataWithTimeout(&buf[0], M2T(100));
             if (!res) {
-                //DEBUG_PRINT("omvTimer: connection timed out (signature, first byte)\n");
+                //DEBUG_PRINT("omvTimer: connection timed out (signature, first byte: %d)\n", buf[0]);
                 return;
             }
         } while (buf[0] != 0x69);
@@ -115,30 +118,28 @@ static void omvTimer(xTimerHandle timer)
 
     openmv_state_t new_state;
 
+    new_state = (openmv_state_t) {
+        .active     = true,
+        .flag = *(int8_t*)   &buf[2],
+        .x   = *(int8_t*)    &buf[3],
+        .y   = *(int8_t*)    &buf[4],
+        .w   = *(int8_t*)   &buf[5],
+        .h   = *(int8_t*)   &buf[6],
+        .t   = *(int8_t*)   &buf[7],
+    };
+    omvSetState(&new_state);
     // parse message
-    switch (buf[2]) {
+    /**switch (buf[2]) {
     case 0: // pass
         break;
     case 1: // set target setpoint
         //omvSetMotorSpeed(buf[2]);
-        openmv_state.active = buf[3];
-        if (buf[3]) { // if active (i.e. blob found)
-            new_state = (openmv_state_t) {
-                .active     = true,
-                .target_x   = *(int8_t*)    &buf[4],
-                .target_y   = *(int8_t*)    &buf[5],
-                .target_z   = *(uint8_t*)   &buf[6],
-            };
-            omvSetState(&new_state);
-        } else { // if not active
-            new_state.active = false;
-            omvSetState(&new_state);
-            //DEBUG_PRINT("(Skipping...)\n");
-        }
+        
+            
         break;
     default:
         break;
-    }
+    }*/
     
     return;
 }

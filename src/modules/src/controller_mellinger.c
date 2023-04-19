@@ -122,6 +122,8 @@ void controllerMellingerReset(controllerMellinger_t* self)
   self->setasl = -1;
   self->baseYaw = 0;
   self->desiredHeight = -1;
+  self->absRoll = 0;
+  self->absPitch = 0;
 }
 
 void controllerMellingerInit(controllerMellinger_t* self)
@@ -160,6 +162,8 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     self->pitchrate = radians(sensors->gyro.y);
     self->setasl = height; 
     self->desiredHeight = height;
+    self->absRoll = 0;
+    self->absPitch = 0;
     self->zrate = state->velocity.z;
     self->pitch = radians(state->attitude.pitch);
     self->roll = radians(state->attitude.roll);
@@ -182,6 +186,9 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
   float wtx = 0;
   float wty = 0;
   float wtz = 0;
+
+  openmv_state_t current_state;
+  omvGetState(&current_state);
   if (flag == 0) {
 
     if (setpoint->sausage.goZ == 1) {
@@ -199,28 +206,40 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     wtz = setpoint->sausage.tauz;
   } else if (flag == 1) { 
 
-    openmv_state_t current_state;
-    omvGetState(&current_state);
-
-    float horizontal = (float)current_state.target_x/128 - 1/2;
-    //float vertical = (float)current_state.target_y/128 - 1/2;
-    float size = current_state.target_z;
-    if (size !=0) {
-      //self->desiredHeight += (float)vertical/128  - 1/2;
-      if (size < 100 && abs(horizontal) < (float).22){
-        wfx = (float) g_self.ballpfx;
-      }
-      else {
-        wfx = 0;
-      }
-      wtz = horizontal* g_self.ballptz /(size);
-      if (wtz > (float).2){
-          wtz = (float).2;
-      }
-      wfy = 0;
+    int flagauto = current_state.flag;
+    int goal_t = current_state.t;
+    if (flagauto == 1 && goal_t < 20) {
+      float goal_x = (float)current_state.x/128;
+      float goal_y = (float)current_state.y/128;
+      float goal_w = (float)current_state.w;
+      //float goal_h = (float)current_state.h/128;
+      wfx = (float)clamp(g_self.ballpfx * (g_self.balldfx-1/goal_w),-1,1);
+      self->desiredHeight += ((float)g_self.ballpfz * (goal_y-1/2))*dt;
       wfz = self->desiredHeight;
-      wtx = 0;
-      wty = 0;
+      wtz = goal_x* g_self.ballptz /(goal_w);
+      
+    }
+    else if (flag == 0){
+      float horizontal = (float)current_state.x/128 - 1/2;
+      //float vertical = (float)current_state.y/128 - 1/2;
+      float size = current_state.w;//math.max(current_state.w,current_state.h);
+      if (size !=0) {
+        //self->desiredHeight += (float)vertical/128  - 1/2;
+        if (size < 100 && abs(horizontal) < (float).22){
+          wfx = (float) g_self.ballpfx;
+        }
+        else {
+          wfx = 0;
+        }
+        wtz = horizontal* g_self.ballptz /(size);
+        if (wtz > (float).2){
+            wtz = (float).2;
+        }
+        wfy = 0;
+        wfz = self->desiredHeight;
+        wtx = 0;
+        wty = 0;
+      }
     }
     else {
       wfx = 0;
@@ -236,22 +255,24 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
   float tempz = (wfz  - self->setasl)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
   float desiredYawrate = wtz * g_self.kR_z + self->yawrate*g_self.kw_z;
-  float desiredRoll = wtx - self->roll*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
-  float desiredPitch = wty - self->pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;//+ stateAttitudeRateYaw * (float)0.01;
   float cosr = (float) cos(-self->roll);
   float sinr = (float) sin(-self->roll);
-  float cosp = (float) cos(-self->pitch);
-  float sinp = (float) sin(-self->pitch);
+  float cosp = (float) cos(self->pitch);
+  float sinp = (float) sin(self->pitch);
+  float tfx = wfx*cosp + wfy*sinr*sinp - tempz*cosr*sinp;
+  float tfy = wfy*cosr + tempz*sinr;
+  float tfz = wfx*sinp - wfy*sinr*cosp + tempz*cosr*cosp;
+  /**
   float tfx = wfx*(cosr- sinr)/2 + 
               wfy*sinp*sinr/2 +
               tempz*(cosr-cosp*sinr)/2;
   float tfy = wfy*cosp/2 + tempz*sinp/2;
   float tfz = -1* wfy*cosr*sinp/2+ 
               wfx * (cosr+ sinr)/2+
-              tempz*(cosp*cosr+sinr)/2;
-  tfx = wfx;
-  tfy = wfy;
-  tfz = tempz;
+              tempz*(cosp*cosr+sinr)/2;*/
+  //tfx = wfx;
+  //tfy = wfy;
+  //tfz = tempz;
 
   
   int id = setpoint->sausage.id;
@@ -262,10 +283,14 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
   //}
   // choose type of flight
   if (id == 0) {
+    float desiredRoll = wtx - self->roll*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;
+    //float desiredPitch = wty - self->pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
+    cosp = (float) cos(-self->pitch);
+    sinp = (float) sin(-self->pitch);
     float l = .3;
     float tfx = wfx*cosp + tempz*sinp;
     //float tfy = fy*cosp/2 + tempz*sinp/2;
-    float tfz = (wfx*sinp + tempz * cosp)/cosr;
+    float tfz = tempz;//(wfx*sinp + tempz * cosp)/cosr;
     float fx = clamp(tfx, -1 , 1);//setpoint->bicopter.fx;
     float fz = clamp(tfz, -.5 , 1.5);//setpoint->bicopter.fz;
     float taux = clamp(desiredRoll, -l + (float)0.01 , l - (float) 0.01);
@@ -304,11 +329,12 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     control->bicopter.m2 = clamp(f2, 0, 1);
     
     if (tick % 10000 == 0) {
-    DEBUG_PRINT("(mel)%f, %f, %f, %f \n(ssmm)%f, %f, %f, %f\n(atitude)r%f, p%f, x%f, y%f\n(mode)%d, %d\n\n", 
+    DEBUG_PRINT("(mel)%f, %f, %f, %f \n(ssmm)%f, %f, %f, %f\n(atitude)r%f, p%f, x%f, y%f\n(mode)%d, %d\n(mv)%f\n\n", 
           (double)fx, (double)fz, (double)taux, (double)tauz,
            (double)t1, (double)t2, (double)f1, (double)f2,
            (double)self->roll, (double)self->pitch, (double)state->velocity.x,(double)state->velocity.y,
-           (int)flag, (int)id);
+           (int)flag, (int)id,
+           (double)1/(current_state.w));
     }
   }
     else if (id == 7){    
@@ -325,6 +351,10 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
     }
    else {
+    self->absRoll = clamp(self->absRoll + wtx*dt, -PI/2, PI/2);
+    self->absPitch = clamp(self->absPitch + wty*dt, -PI/2, PI/2);
+    float desiredRoll = (self->absRoll - self->roll)*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;
+    float desiredPitch = (self->absPitch - self->pitch)*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
     float fx = clamp(tfx, -3.5, 3.5);
     float fy = clamp(tfy, -3.5, 3.5);
     float fz = clamp(tfz,-1,4);
