@@ -22,19 +22,28 @@
 #define OMV_PIN_OUT UART1_GPIO_TX_PIN
 
 openmv_state_t openmv_state;
+openmv_state_t openmv_state2;
 
 static bool isInit = false;
 static xTimerHandle timer;
+int64_t counter;
 
 void omvGetState(openmv_state_t* s)
 {
+    // if (counter%100 == 0) {
+        // counter = 1;
     // CRITICAL SECTION: this operation is atomic, cannot be interrupted
-    taskENTER_CRITICAL();
-    {
-        // copy state data
-        *s = openmv_state;
-    }
-    taskEXIT_CRITICAL();
+        taskENTER_CRITICAL();
+        {
+            // copy state data
+            *s = openmv_state;
+        }
+        taskEXIT_CRITICAL();
+    // }counter += 1;
+    
+    // *s = openmv_state2;
+    
+    
 }
 
 /*static void omvSetStateFromBytes(uint8_t target_x_byte,
@@ -67,18 +76,18 @@ static void omvSetState(openmv_state_t* new_state)
         openmv_state = *new_state;
     }
     taskEXIT_CRITICAL();
-    /**
+    
     if (openmv_state.active) {
-        DEBUG_PRINT("OpenMV xywhtf (%d, %d, %f, %d, %d, %d)\n",
+        DEBUG_PRINT("OpenMV xywhtf (%d, %d, %d, %d, %d, %d)\n",
                     (int)openmv_state.x,
                     (int)openmv_state.y,
-                    (double)1/openmv_state.w,
+                    (int)openmv_state.w,
                     (int)openmv_state.h,
                     (int)openmv_state.t,
                     (int)openmv_state.flag);
     } else {
         DEBUG_PRINT("OpenMV target disabled\n");
-    }*/
+    }
 }
 
 static void omvTimer(xTimerHandle timer)
@@ -88,16 +97,15 @@ static void omvTimer(xTimerHandle timer)
     // get serial data from UART
     // 1. loop until start byte is found
     // 2. get all 64 bytes, including start byte
-    uint8_t buf[8];
-    buf[0] = 0;
-    buf[1] = 0;
+    uint8_t buf[8] = {0,0,0,0,0,0,0,0};
+    
     bool res;
     // find the sequence 0x6969, for synchronization
     do {
         do {
             res = uart1GetDataWithTimeout(&buf[0], M2T(100));
             if (!res) {
-                //DEBUG_PRINT("omvTimer: connection timed out (signature, first byte: %d)\n", buf[0]);
+                DEBUG_PRINT("omvTimer: connection timed out (signature, first byte: %d)\n", buf[0]);
                 return;
             }
         } while (buf[0] != 0x69);
@@ -147,9 +155,10 @@ static void omvTimer(xTimerHandle timer)
 static void omvInit()
 {
     if (isInit) return;
-    
+    memset(&counter, 0, sizeof(int64_t));
     // clear state
     memset(&openmv_state, 0, sizeof(openmv_state_t));
+    memset(&openmv_state2, 0, sizeof(openmv_state_t));
 
     // initialize UART1 comms
     //pinMode(OMV_PIN, INPUT);
@@ -160,7 +169,7 @@ static void omvInit()
     }
 
     timer = xTimerCreate("omvTimer", M2T(100), pdTRUE, NULL, omvTimer);
-    xTimerStart(timer, 100);
+    xTimerStart(timer, 50);
 
     isInit = true;
     DEBUG_PRINT("OpenMV connected.\n");

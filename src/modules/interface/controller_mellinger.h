@@ -28,6 +28,7 @@
 
 #include "stabilizer_types.h"
 #include "math3d.h"
+#include "openmv.h"
 
 typedef struct {
     float mass;
@@ -76,10 +77,15 @@ typedef struct {
 
     float ballpfx;
     float balldfx;
+    float ballptx;
+    float balldtx;
     float ballpfz;
     float balldfz;
     float ballptz;
     float balldtz;
+
+    float lx;
+    float ly;
 
     // Logging variables
     struct vec z_axis_desired;
@@ -107,6 +113,7 @@ typedef struct {
     float absRoll;
     float absPitch;
     float goalHeight;
+    openmv_state_t openmv_state;
 } controllerMellinger_t;
 
 void controllerMellingerInit(controllerMellinger_t* self);
