@@ -108,6 +108,7 @@ static controllerMellinger_t g_self = {
   .balldfz = 1,
   .ballptz = 1,
   .balldtz = 1,
+  .goalHeight = 0,
 };
 
 
@@ -176,10 +177,14 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     self->zrate = state->velocity.z;
     self->pitch = radians(state->attitude.pitch);
     self->roll = radians(state->attitude.roll);
+    self->i_error_x = 0;
+    self->i_error_y = 0;
   }
 
   self->setasl = self->setasl * gamma + height * (1-gamma);
   self->zrate = self->zrate * gamma + state->velocity.z * (1-gamma);
+  self->i_error_x = clamp(self->i_error_x + sensors->acc.x, -20,20);
+  self->i_error_y = clamp(self->i_error_y + sensors->acc.y, -20,20);
   self->pitch = self->pitch * gamma + radians(state->attitude.pitch) * (1-gamma);
   self->roll = self->roll * gamma + radians(state->attitude.roll)* (1-gamma);
 
@@ -199,14 +204,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     omvGetState(&self->openmv_state);
   }
 
-  if (tick%500 == 0){
-    float goal_x = (float)self->openmv_state.x;
-    float goal_y = (float)self->openmv_state.y;
-    float goal_dist = (float)self->openmv_state.w;
-    float goal_side = (float)self->openmv_state.h;
-    DEBUG_PRINT("(OMV) x%f, y%f, d%f, s%f, t%d\n\n", 
-      (double)goal_x, (double)goal_y, (double)goal_dist, (double)goal_side, (int)self->openmv_state.t);
-  }
+
   if (flag == 0) {
 
     if (setpoint->sausage.goZ == 1) {
@@ -224,17 +222,17 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     wtz = setpoint->sausage.tauz;
   } else if (flag == 1) { 
 
+    self->desiredHeight = self->groundasl + self->goalHeight;//+= ((float)g_self.ballpfz * (goal_y))*dt;
+    wfz = self->desiredHeight;
     int flagauto = self->openmv_state.flag;
     int goal_t = self->openmv_state.t;
     if (flagauto == 1 && goal_t < 10) {
       float goal_x = (float)self->openmv_state.x/128;
-      float goal_y = (float)self->openmv_state.y/128;
+      //float goal_y = (float)self->openmv_state.y/128;
       float goal_dist = (float)self->openmv_state.w;
       float goal_side = (float)self->openmv_state.h/128;
       wfx = (float)clamp(g_self.ballpfx * (g_self.balldfx-goal_dist),-1,1);
       wtx = (float)g_self.ballptx * goal_side;
-      self->desiredHeight += ((float)g_self.ballpfz * (goal_y))*dt;
-      wfz = self->desiredHeight;
       wtz = goal_x* g_self.ballptz * goal_dist;
       
     }
@@ -270,10 +268,21 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     }
     
   }
+  if (tick%500 == 0){
+    float goal_x = (float)self->openmv_state.x;
+    float goal_y = (float)self->openmv_state.y;
+    float goal_dist = (float)self->openmv_state.w;
+    float goal_side = (float)self->openmv_state.h;
+    DEBUG_PRINT("(OMV) x%f, y%f, d%f, s%f, t%d\n (relative to ground) z%f, dez%f\n\n", 
+      (double)goal_x, (double)goal_y, (double)goal_dist, (double)goal_side, (int)self->openmv_state.t,
+     (double)(self->setasl - self->groundasl), (double)(self->desiredHeight- self->groundasl));
+  }
 
-
-  float tempz = (wfz  - self->setasl)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
-  float desiredYawrate = wtz * g_self.kR_z + self->yawrate*g_self.kw_z;
+  float tempz = clamp((wfz  - self->setasl)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z,-2,2);
+  if (wtz == 0 ){
+    self->i_error_m_z = clamp(self->i_error_m_z + self->yawrate, -200,200);
+  } 
+  float desiredYawrate = wtz * g_self.kR_z + self->yawrate*g_self.kw_z + self->i_error_m_z*g_self.ki_m_z;
   float cosr = (float) cos(-self->roll);
   float sinr = (float) sin(-self->roll);
   float cosp = (float) cos(self->pitch);
@@ -289,7 +298,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
   float tfz = -1* wfy*cosr*sinp/2+ 
               wfx * (cosr+ sinr)/2+
               tempz*(cosp*cosr+sinr)/2;*/
-  if (g_self.ki_xy != 0) {
+  if (g_self.i_range_z != 0) {
     tfx = wfx;
     tfy = wfy;
     tfz = tempz;
@@ -305,6 +314,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     sinp = (float) sin(-self->pitch);
     cosr = (float) cos(self->roll);
     // sinr = (float) sin(self->roll);
+    wfx = wfx + g_self.ki_xy * self->i_error_x;
     float l = g_self.lx; //.3
     float tfx = wfx*cosp + tempz*sinp;
     //float tfy = fy*cosp/2 + tempz*sinp/2;
@@ -494,7 +504,61 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
       control->bicopter.s1 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
       control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
-    } else if (id == 5){
+    } else if (id == 8) {
+      //float lx = g_self.lx;
+      //float ly = g_self.ly;
+      //float lxy = floatsqrt(lx*lx+ly*ly);
+      
+      f2 = 0;//(float) sqrt(pow(fz + tx/ly - ty/lx,2)+ pow(-sqrt(2)* fx*lxy + sqrt(2)*fy*lxy + tz,2)/(lxy*lxy))/4;
+      f1 = 0;
+
+    
+      t2 = 0;//atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lxy));
+      t1 = 0;//atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lxy));
+
+      while (t1 < -PI/4) {
+        t1 = t1 + 2 * PI;
+      }
+      while (t1 > 2*PI-PI/4) {
+        t1 = t1 - 2 * PI;
+      }
+      while (t2 < -PI/4) {
+        t2 = t2 + 2 * PI;
+      }
+      while (t2 > 2*PI-PI/4) {
+        t2 = t2 - 2 * PI;
+      }
+
+      control->bicopter.s1 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
+    }else if (id == 9) {
+      float lx = g_self.lx;
+      float ly = g_self.ly;
+      float lx2ly2 = lx*lx+ly*ly;
+      
+      f2 = (float)sqrt((float)pow(fz+(2*ty/lx), 2) + 4* (float)pow(fy-(lx*tz)/lx2ly2,2))/4;
+      f1 = (float)sqrt((float)pow(fz-(2*tx/ly), 2) + 4* (float)pow(fx+(ly*tz)/lx2ly2,2))/4;
+
+    
+      t2 = atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lx2ly2));
+      t1 = atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lx2ly2));
+
+      while (t1 < -PI/4) {
+        t1 = t1 + 2 * PI;
+      }
+      while (t1 > 2*PI-PI/4) {
+        t1 = t1 - 2 * PI;
+      }
+      while (t2 < -PI/4) {
+        t2 = t2 + 2 * PI;
+      }
+      while (t2 > 2*PI-PI/4) {
+        t2 = t2 - 2 * PI;
+      }
+
+      control->bicopter.s1 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+      control->bicopter.s2 = 1 - clamp(t2, 0, PI*3/2)/(PI*3/2);
+    }else if (id == 5){
       self->bicoptermode = 0;
       self->desiredHeight = self->groundasl; 
       t1 = PI/2;
@@ -558,6 +622,10 @@ void controllerMellingerFirmware(control_t *control, const setpoint_t *setpoint,
 
 PARAM_GROUP_START(ctrlMel)
 
+/**
+ * @brief goal height set point
+ */
+PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, goalHeight, &g_self.goalHeight)
 /**
  * @brief moment arm on lx
  */

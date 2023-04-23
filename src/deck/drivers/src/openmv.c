@@ -76,7 +76,7 @@ static void omvSetState(openmv_state_t* new_state)
         openmv_state = *new_state;
     }
     taskEXIT_CRITICAL();
-    
+    /**
     if (openmv_state.active) {
         DEBUG_PRINT("OpenMV xywhtf (%d, %d, %d, %d, %d, %d)\n",
                     (int)openmv_state.x,
@@ -87,7 +87,7 @@ static void omvSetState(openmv_state_t* new_state)
                     (int)openmv_state.flag);
     } else {
         DEBUG_PRINT("OpenMV target disabled\n");
-    }
+    }*/
 }
 
 static void omvTimer(xTimerHandle timer)
@@ -105,7 +105,7 @@ static void omvTimer(xTimerHandle timer)
         do {
             res = uart1GetDataWithTimeout(&buf[0], M2T(100));
             if (!res) {
-                DEBUG_PRINT("omvTimer: connection timed out (signature, first byte: %d)\n", buf[0]);
+                //DEBUG_PRINT("omvTimer: connection timed out (signature, first byte: %d)\n", buf[0]);
                 return;
             }
         } while (buf[0] != 0x69);
