@@ -369,8 +369,8 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
 
     }
    else {
-    self->absRoll = clamp(self->absRoll + wtx*dt, -PI/2, PI/2);
-    self->absPitch = clamp(self->absPitch + wty*dt, -PI/2, PI/2);
+    self->absRoll = wtx ; //clamp(self->absRoll + wtx*dt, -PI/2, PI/2);
+    self->absPitch = wty ; //clamp(self->absPitch + wty*dt, -PI/2, PI/2);
     float desiredRoll = (self->absRoll + self->roll)*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;
     float desiredPitch = (self->absPitch - self->pitch)*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
     float fx = clamp(tfx, -3.5, 3.5);
@@ -512,9 +512,66 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       control->bicopter.s2 = 1 -clamp(t2, 0, PI*3/2)/(PI*3/2);
       f1 = 0;
       f2 = 0;
+    } else if (id > 10){
+      float lx = g_self.lx;
+      float ly = g_self.ly;
+      float lx2ly2 = lx*lx+ly*ly;
+      f1 = 0;
+      f2 = 0;
+      t1 = PI/2;
+      control->bicopter.s2 = clamp(0, 0, PI*3/2)/(PI*3/2);
+      if (id == 11){
+        f1 = (float)sqrt((float)pow(fz-(2*ty/lx), 2) + 4* (float)pow(fy+(lx*tz)/lx2ly2,2))/4;
+        t1 = atan2((fz- (2*ty)/lx)/4, (fy+(lx*tz)/lx2ly2));
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+
+      }
+      if (id == 12){
+        f1 = (float)sqrt((float)pow(fz+(2*tx/ly), 2) + 4* (float)pow(fx-(ly*tz)/lx2ly2,2))/4;
+        t1 = atan2((fz+ (2*tx)/ly)/4, (fx-(ly*tz)/lx2ly2));
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        
+      }
+      if (id == 13){
+        f1 = (float)sqrt((float)pow(fz+(2*ty/lx), 2) + 4* (float)pow(fy-(lx*tz)/lx2ly2,2))/4;
+        t1 = atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lx2ly2));
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        
+      }
+      if (id == 14){
+        f1 = (float)sqrt((float)pow(fz-(2*tx/ly), 2) + 4* (float)pow(fx+(ly*tz)/lx2ly2,2))/4;
+        t1 = atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lx2ly2));
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        
+      }
+      if (id == 15){
+        f1 = 0;
+        t1 = PI/2;
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        
+      }
+      if (id == 16){
+        f1 = 0;
+        t1 = PI/2;
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        
+      }
+      if (id == 17){
+        f1 = 0;
+        t1 = PI/2;
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        
+      }
+      if (id == 18){
+        f1 = 0;
+        t1 = PI/2;
+        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        
+      }
     } else {
       return;
     }
+    
     control->bicopter.m1 = clamp(f1, 0, 1);
     control->bicopter.m2 = clamp(f2, 0, 1);
     if (tick % 10000 == 0) {
