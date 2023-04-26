@@ -108,6 +108,11 @@ static controllerMellinger_t g_self = {
   .balldfz = 1,
   .ballptz = 1,
   .balldtz = 1,
+
+  .ir = 1,
+  .ip = 1,
+  .rpswap = 1,
+  
 };
 
 
@@ -199,22 +204,22 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     omvGetState(&self->openmv_state);
   }
 
-  if (tick%500 == 0){
-    float goal_x = (float)self->openmv_state.x;
-    float goal_y = (float)self->openmv_state.y;
-    float goal_dist = (float)self->openmv_state.w;
-    float goal_side = (float)self->openmv_state.h;
-    DEBUG_PRINT("(OMV) x%f, y%f, d%f, s%f, t%d\n\n", 
-      (double)goal_x, (double)goal_y, (double)goal_dist, (double)goal_side, (int)self->openmv_state.t);
-  }
+  // if (tick%500 == 0){
+  //   float goal_x = (float)self->openmv_state.x;
+  //   float goal_y = (float)self->openmv_state.y;
+  //   float goal_dist = (float)self->openmv_state.w;
+  //   float goal_side = (float)self->openmv_state.h;
+  //   DEBUG_PRINT("(OMV) x%f, y%f, d%f, s%f, t%d\n\n", 
+  //     (double)goal_x, (double)goal_y, (double)goal_dist, (double)goal_side, (int)self->openmv_state.t);
+  // }
   if (flag == 0) {
-
+    /**
     if (setpoint->sausage.goZ == 1) {
       self->goalHeight = self->desiredHeight;
     }
     else if (setpoint->sausage.goZ == 2) {
       self->desiredHeight = self->goalHeight;
-    }
+    }*/
     wfx = setpoint->sausage.fx;
     wfy = setpoint->sausage.fy;
     self->desiredHeight += setpoint->sausage.absz*dt;
@@ -272,12 +277,20 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
   }
 
 
-  float tempz = (wfz  - self->setasl)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z;
+  float tempz = (wfz  - self->setasl)*(float)g_self.kp_z- (self->zrate) * (float)g_self.kd_z + setpoint->sausage.goZ;
   float desiredYawrate = wtz * g_self.kR_z + self->yawrate*g_self.kw_z;
-  float cosr = (float) cos(-self->roll);
-  float sinr = (float) sin(-self->roll);
-  float cosp = (float) cos(self->pitch);
-  float sinp = (float) sin(self->pitch);
+  
+  float cosr = (float) cos(g_self.ir*self->roll);
+  float sinr = (float) sin(g_self.ir*self->roll);
+  float cosp = (float) cos(g_self.ip*self->pitch);
+  float sinp = (float) sin(g_self.ip*self->pitch);
+
+  if (g_self.rpswap == 1){
+    cosr = (float) cos(g_self.ip*self->pitch);
+    sinr = (float) sin(g_self.ip*self->pitch);
+    cosp = (float) cos(g_self.ir*self->roll);
+    sinp = (float) sin(g_self.ir*self->roll);
+  }
   float tfx = wfx*cosp + wfy*sinr*sinp - tempz*cosr*sinp;
   float tfy = wfy*cosr + tempz*sinr;
   float tfz = wfx*sinp - wfy*sinr*cosp + tempz*cosr*cosp;
@@ -289,7 +302,7 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
   float tfz = -1* wfy*cosr*sinp/2+ 
               wfx * (cosr+ sinr)/2+
               tempz*(cosp*cosr+sinr)/2;*/
-  if (g_self.ki_xy != 0) {
+  if (g_self.ki_xy == 0) {
     tfx = wfx;
     tfy = wfy;
     tfz = tempz;
@@ -371,8 +384,18 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
    else {
     self->absRoll = wtx ; //clamp(self->absRoll + wtx*dt, -PI/2, PI/2);
     self->absPitch = wty ; //clamp(self->absPitch + wty*dt, -PI/2, PI/2);
-    float desiredRoll = (self->absRoll + self->roll)*(float)g_self.kR_xy - self->rollrate *(float)g_self.kw_xy;
-    float desiredPitch = (self->absPitch - self->pitch)*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
+    float r = g_self.ir*self->roll;
+    float rr = g_self.ir*self->rollrate;
+    float p = g_self.ip*self->pitch;
+    float pp = g_self.ip*self->pitchrate;
+    if (g_self.rpswap == 1){
+      p = g_self.ir*self->roll;
+      pp = g_self.ir*self->rollrate;
+      r = g_self.ip*self->pitch;
+      rr = g_self.ip*self->pitchrate;
+    }
+    float desiredRoll = (self->absRoll ) + (r)*(float)g_self.kR_xy + rr *(float)g_self.kw_xy;
+    float desiredPitch = (self->absPitch) + (p)*(float)g_self.kR_xy + pp *(float)g_self.kw_xy;
     float fx = clamp(tfx, -3.5, 3.5);
     float fy = clamp(tfy, -3.5, 3.5);
     float fz = clamp(tfz,-1,4);
@@ -519,67 +542,83 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
       f1 = 0;
       f2 = 0;
       t1 = PI/2;
-      control->bicopter.s2 = clamp(0, 0, PI*3/2)/(PI*3/2);
+      
       if (id == 11){
         f1 = (float)sqrt((float)pow(fz-(2*ty/lx), 2) + 4* (float)pow(fy+(lx*tz)/lx2ly2,2))/4;
         t1 = atan2((fz- (2*ty)/lx)/4, (fy+(lx*tz)/lx2ly2));
-        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
-
+        control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        control->bicopter.s2 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        
       }
       if (id == 12){
         f1 = (float)sqrt((float)pow(fz+(2*tx/ly), 2) + 4* (float)pow(fx-(ly*tz)/lx2ly2,2))/4;
         t1 = atan2((fz+ (2*tx)/ly)/4, (fx-(ly*tz)/lx2ly2));
         control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        control->bicopter.s2 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
         
       }
       if (id == 13){
         f1 = (float)sqrt((float)pow(fz+(2*ty/lx), 2) + 4* (float)pow(fy-(lx*tz)/lx2ly2,2))/4;
         t1 = atan2((fz+ (2*ty)/lx)/4, (fy-(lx*tz)/lx2ly2));
-        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        control->bicopter.s1 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        control->bicopter.s2 =  clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
         
       }
       if (id == 14){
         f1 = (float)sqrt((float)pow(fz-(2*tx/ly), 2) + 4* (float)pow(fx+(ly*tz)/lx2ly2,2))/4;
         t1 = atan2((fz- (2*tx)/ly)/4, (fx+(ly*tz)/lx2ly2));
-        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
+        control->bicopter.s2 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);// cant handle values between PI and 2PI
         
       }
       if (id == 15){
+        self->bicoptermode = 0;
+        self->desiredHeight = self->groundasl; 
         f1 = 0;
         t1 = PI/2;
-        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);
+        control->bicopter.s2 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);
         
       }
       if (id == 16){
+        self->bicoptermode = 0;
+        self->desiredHeight = self->groundasl; 
         f1 = 0;
         t1 = PI/2;
         control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        control->bicopter.s2 = clamp(t1, 0, PI*3/2)/(PI*3/2);
         
       }
       if (id == 17){
+        self->bicoptermode = 0;
+        self->desiredHeight = self->groundasl; 
         f1 = 0;
         t1 = PI/2;
         control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        control->bicopter.s2 = clamp(t1, 0, PI*3/2)/(PI*3/2);
         
       }
       if (id == 18){
+        self->bicoptermode = 0;
+        self->desiredHeight = self->groundasl; 
         f1 = 0;
         t1 = PI/2;
-        control->bicopter.s1 = clamp(t1, 0, PI*3/2)/(PI*3/2);
+        control->bicopter.s1 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);
+        control->bicopter.s2 = 1 - clamp(t1, 0, PI*3/2)/(PI*3/2);
         
       }
+      f2 = f1;
     } else {
       return;
     }
     
     control->bicopter.m1 = clamp(f1, 0, 1);
     control->bicopter.m2 = clamp(f2, 0, 1);
-    if (tick % 10000 == 0) {
-    DEBUG_PRINT("(input)%f, %f, %f, %f, %f \n(t1,t2,f1,f2)%f, %f, %f, %f\n(desireyaw,pitch,roll)%f, %f, %f\n(desiredheight,height,ground)%f, %f, %f\n\n", 
+    if (tick % 5000 == 0) {
+    DEBUG_PRINT("(fx,z tx,y,z)%f, %f, %f, %f, %f \n(t1,t2,f1,f2)%f, %f, %f, %f\n(desireyaw,pitch,roll)%f, %f, %f\n\n", 
           (double)fx, (double)fz, (double)tx, (double)ty, (double)tz,
-           (double)t1, (double)t2, (double)f1, (double)f2,
-           (double)desiredYawrate, (double)self->pitch, (double)self->roll,
-           (double)self->desiredHeight, (double)self->setasl, (double)self->groundasl);
+           (double)(t1*180/PI), (double)(t2*180/PI), (double)f1, (double)f2,
+           (double)desiredYawrate, (double)(self->pitch*180/PI), (double)(self->roll*180/PI));
     }
   }
 
@@ -623,6 +662,19 @@ PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, lx, &g_self.lx)
  * @brief moment arm on ly
  */
 PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, ly, &g_self.ly)
+
+/**
+ * @brief moment arm on lx
+ */
+PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, ir, &g_self.ir)
+/**
+ * @brief moment arm on ly
+ */
+PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, ip, &g_self.ip)
+/**
+ * @brief moment arm on ly
+ */
+PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, rpswap, &g_self.rpswap)
 
 /**
  * @brief ball fx P-gain (horizontal xy plane)

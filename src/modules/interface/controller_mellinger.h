@@ -114,6 +114,9 @@ typedef struct {
     float absPitch;
     float goalHeight;
     openmv_state_t openmv_state;
+    int rpswap;
+    float ir;
+    float ip;
 } controllerMellinger_t;
 
 void controllerMellingerInit(controllerMellinger_t* self);
