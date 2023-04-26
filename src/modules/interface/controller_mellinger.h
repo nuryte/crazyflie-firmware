@@ -77,12 +77,14 @@ typedef struct {
 
     float ballpfx;
     float balldfx;
+    float ballifx;
     float ballptx;
     float balldtx;
     float ballpfz;
     float balldfz;
     float ballptz;
     float balldtz;
+    float goalDist;
 
     float lx;
     float ly;
@@ -115,6 +117,9 @@ typedef struct {
     float goalHeight;
     openmv_state_t openmv_state;
     int time_i_tz;
+
+    float oldGoalDist;
+    float goalDisti;
 } controllerMellinger_t;
 
 void controllerMellingerInit(controllerMellinger_t* self);

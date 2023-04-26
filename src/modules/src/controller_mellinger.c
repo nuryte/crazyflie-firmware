@@ -102,6 +102,7 @@ static controllerMellinger_t g_self = {
   //ball
   .ballpfx = .1,
   .balldfx = 1,
+  .ballifx = 1,
   .ballptx = 1,
   .balldtx = 1,
   .ballpfz = 1,
@@ -109,6 +110,7 @@ static controllerMellinger_t g_self = {
   .ballptz = 1,
   .balldtz = 1,
   .goalHeight = 0,
+  .goalDist = 0
 };
 
 
@@ -131,6 +133,8 @@ void controllerMellingerReset(controllerMellinger_t* self)
   self->desiredHeight = -1;
   self->absRoll = 0;
   self->absPitch = 0;
+  self->oldGoalDist = 0;
+  self->goalDisti = 0;
 
 }
 
@@ -201,6 +205,10 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
   float wty = 0;
   float wtz = 0;
   if (tick%100 == 0) {
+    self->oldGoalDist = self->openmv_state.w;
+    if (self->openmv_state.t == 0) {
+      self->goalDisti = clamp(self->goalDisti + clamp(g_self.goalDist - self->openmv_state.w, -5,5), -200, 200);
+    }
     omvGetState(&self->openmv_state);
   }
 
@@ -226,16 +234,18 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control, const 
     wfz = self->desiredHeight;
     int flagauto = self->openmv_state.flag;
     int goal_t = self->openmv_state.t;
-    if (flagauto == 1 && goal_t < 10) {
+    if (flagauto == 1 && goal_t < 2) {
       float goal_x = (float)self->openmv_state.x/128;
       //float goal_y = (float)self->openmv_state.y/128;
       float goal_dist = (float)self->openmv_state.w;
       float goal_side = (float)self->openmv_state.h/128;
-      wfx = (float)clamp(g_self.ballpfx * (g_self.balldfx-goal_dist),-1,1);
+      wfx = (float)clamp(g_self.ballpfx * (g_self.goalDist-goal_dist) - 
+                    g_self.balldfx * clamp(self->oldGoalDist - self->openmv_state.w, -4, 4) -
+                    g_self.ballifx * self->goalDisti,-1,1);
       wtx = (float)g_self.ballptx * goal_side;
       wtz = goal_x* g_self.ballptz * goal_dist;
       
-    }
+    } 
     else if (flag == 0){
       float horizontal = (float)self->openmv_state.x/128 - 1/2;
       //float vertical = (float)current_state.y/128 - 1/2;
@@ -622,6 +632,16 @@ void controllerMellingerFirmware(control_t *control, const setpoint_t *setpoint,
 
 PARAM_GROUP_START(ctrlMel)
 
+
+/**
+ * @brief goal height set point
+ */
+PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, ballifx, &g_self.ballifx)
+
+/**
+ * @brief goal height set point
+ */
+PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, goalDist, &g_self.goalDist)
 /**
  * @brief goal height set point
  */
