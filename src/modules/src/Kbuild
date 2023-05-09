@@ -13,6 +13,7 @@ obj-y += controller.o
 obj-y += controller_pid.o
 obj-y += controller_brescianini.o
 obj-y += crtp_commander_generic.o
+obj-y += behavior.o
 obj-y += crtp_commander_high_level.o
 obj-y += crtp_commander.o
 obj-y += crtp_commander_rpyt.o

@@ -121,7 +121,7 @@ typedef struct {
 
 void controllerMellingerInit(controllerMellinger_t* self);
 bool controllerMellingerTest(controllerMellinger_t* self);
-void controllerMellinger(controllerMellinger_t* self, control_t *control, const setpoint_t *setpoint,
+void controllerMellinger(controllerMellinger_t* self, control_t *control, behavior_t *behavior,
                                          const sensorData_t *sensors,
                                          const state_t *state,
                                          const uint32_t tick);

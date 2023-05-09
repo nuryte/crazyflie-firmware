@@ -102,14 +102,14 @@ static void velocityDecoder(setpoint_t *setpoint, uint8_t type, const void *data
 
   ASSERT(datalen == sizeof(struct velocityPacket_s));
   //DEBUG_PRINT("(Velocity) Please show here!)\n");
-
+  /**
   setpoint->bicopter.fx = values->vx;
   setpoint->bicopter.fz = 0;
   setpoint->bicopter.tauz = values->vz;
   setpoint->bicopter.taux = values->yawrate;
 
   setpoint->bicopter.mode = 1;
-  setpoint->bicopter.absz = values->vy;
+  setpoint->bicopter.absz = values->vy;*/
 }
 
 /* zDistanceDecoder
@@ -310,7 +310,7 @@ static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, s
   const struct hoverPacket_s *values = data;
 
   ASSERT(datalen == sizeof(struct hoverPacket_s));
-
+ /**
   setpoint->sausage.fx = values->fx;
   setpoint->sausage.fz = values->fz;
   setpoint->sausage.taux = values->tx;
@@ -321,7 +321,7 @@ static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, s
 
 
 
-  setpoint->bicopter.mode = 2;
+  setpoint->bicopter.mode = 2;*/
 }
 
 struct fullStatePacket_s {
@@ -345,18 +345,17 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
 
   ASSERT(datalen == sizeof(struct fullStatePacket_s));
 
-  setpoint->sausage.fx = values->x/ 1000.0f;
-  setpoint->sausage.fy = values->y/ 1000.0f;
-  setpoint->sausage.fz = 0;//values->y/ 1000.0f;
-  setpoint->sausage.absz = values->z/ 1000.0f;
-  setpoint->sausage.taux = values->vx/ 1000.0f;
-  setpoint->sausage.tauy = values->vy/ 1000.0f;
-  setpoint->sausage.tauz = values->vz/ 1000.0f;
-  setpoint->sausage.id = values->ax/1000;
-  setpoint->sausage.flag = values->ay/1000;
-  setpoint->sausage.goZ = values->az/1000;
+  setpoint->fx = values->x/ 1000.0f;
+  setpoint->fy = values->y/ 1000.0f;
+  setpoint->fz = values->z/ 1000.0f;
+  setpoint->taux = values->vx/ 1000.0f;
+  setpoint->tauy = values->vy/ 1000.0f;
+  setpoint->tauz = values->vz/ 1000.0f;
+  setpoint->type_identity = values->ax/1000;
+  setpoint->behavior_flag = values->ay/1000;
+  setpoint->absz = values->az/1000;
+  
 
-  setpoint->bicopter.mode = 2;
   //DEBUG_PRINT("(FULLSTATE!!!) Please show here!): %f %d :\n", (double)setpoint->sausage.fz , setpoint->sausage.id);
 
   /*
@@ -403,14 +402,14 @@ static void positionDecoder(setpoint_t *setpoint, uint8_t type, const void *data
   //setpoint->manual.m2 = values->y;
   //setpoint->manual.m3 = values->z;
   //setpoint->manual.m4 = values->yaw;
-
+  /**
   setpoint->bicopter.fx = values->x;
   setpoint->bicopter.fz = values->y;
   setpoint->bicopter.tauz = values->z;
   setpoint->bicopter.taux = values->yaw;
 
   setpoint->bicopter.mode = 0;
-  setpoint->bicopter.absz = 0;
+  setpoint->bicopter.absz = 0;*/
   //DEBUG_PRINT("(position) %f,%f,%f,%f\n", (double)setpoint->bicopter.fx, (double)setpoint->bicopter.fz, (double)setpoint->bicopter.tauz, (double)setpoint->bicopter.taux);
   /**
   setpoint->mode.x = modeAbs;

@@ -281,6 +281,60 @@ typedef struct setpoint_s {
     stab_mode_t quat;
   } mode;
 
+
+  float fx;
+  float fy;
+  float fz;
+  float absz;
+
+  float taux;
+  float tauy;
+  float tauz;
+
+  int type_identity;
+  int behavior_flag;
+  
+} setpoint_t;
+
+typedef struct behavior_s {
+
+  float fx;
+  float fy;
+  float fz;
+  float absz;
+
+  float taux;
+  float tauy;
+  float tauz;
+
+  int type_identity;
+  
+  
+} behavior_t;
+
+
+typedef struct setpoint_s2 {
+  uint32_t timestamp;
+
+  attitude_t attitude;      // deg
+  attitude_t attitudeRate;  // deg/s
+  quaternion_t attitudeQuaternion;
+  float thrust;
+  point_t position;         // m
+  velocity_t velocity;      // m/s
+  acc_t acceleration;       // m/s^2
+  bool velocity_body;       // true if velocity is given in body frame; false if velocity is given in world frame
+
+  struct {
+    stab_mode_t x;
+    stab_mode_t y;
+    stab_mode_t z;
+    stab_mode_t roll;
+    stab_mode_t pitch;
+    stab_mode_t yaw;
+    stab_mode_t quat;
+  } mode;
+
   struct {
     float m1;
     float m2;
@@ -310,7 +364,7 @@ typedef struct setpoint_s {
     float absz;
   } sausage;
 
-} setpoint_t;
+} setpoint_t2;
 
 /** Estimate of position */
 typedef struct estimate_s {

@@ -45,6 +45,7 @@
 #include "crtp_commander_high_level.h"
 #include "crtp_localization_service.h"
 #include "controller.h"
+#include "behavior.h"
 #include "power_distribution.h"
 #include "collision_avoidance.h"
 #include "health.h"
@@ -64,6 +65,7 @@ static int emergencyStopTimeout = EMERGENCY_STOP_TIMEOUT_DISABLED;
 static uint32_t inToOutLatency;
 
 // State variables for the stabilizer
+static behavior_t behavior;
 static setpoint_t setpoint;
 static sensorData_t sensorData;
 static state_t state;
@@ -179,7 +181,8 @@ void stabilizerInit(StateEstimatorType estimator)
   sensorsInit();
   stateEstimatorInit(estimator);
   controllerInit(ControllerTypeAny);
-  
+
+  behaviorFirmwareInit();//added behaviour select
   powerDistributionInit();
   motorsInit(platformConfigGetMotorMapping());
   collisionAvoidanceInit();
@@ -292,10 +295,13 @@ static void stabilizerTask(void* param)
       commanderGetSetpoint(&setpoint, &state);
       
       compressSetpoint();
-      
+
+      //
+      behaviorSelectFirmware(&setpoint, &behavior, &sensorData, &state, tick);
       //collisionAvoidanceUpdateSetpoint(&setpoint, &sensorData, &state, tick);
 
-      controller(&control, &setpoint, &sensorData, &state, tick);
+
+      controller(&control, &behavior, &sensorData, &state, tick);
 
       //if (fabs(state.attitude.roll)>30) {
       //  control.thrust = 10000;
