@@ -152,7 +152,7 @@ bool behaviorFirmwareTest(void)
   return behaviorTest(&g_self);
 }
 
-void behaviorSelectFirmware(const setpoint_t *setpoint, const behavior_t *behavior,
+void behaviorSelectFirmware(const setpoint_t *setpoint, behavior_t *behavior,
                                          const sensorData_t *sensors,
                                          const state_t *state,
                                          const uint32_t tick)

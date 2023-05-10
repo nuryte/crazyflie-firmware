@@ -268,14 +268,14 @@ void biQuadCopterControl(controllerMellinger_t* self, control_t *control,
     
   
   float fx = behavior->fx;
-  float fy = behavior->fy;
+  //float fy = behavior->fy;
   float fz = behavior->fz;
   
   float tx = behavior->taux;
   float ty = behavior->tauy;
   float tz = behavior->tauz;
   int id = behavior->type_identity;
-  
+
   float f1 = 0;
   float f2 = 0;
   float t1 = 0;
@@ -589,8 +589,8 @@ void controllerMellinger(controllerMellinger_t* self, control_t *control,
   if (behavior->type_identity == 0) {
     return;
   }
-  float height = state->position.z;
-  float dt = (float)(1.0f/ATTITUDE_RATE);
+  //float height = state->position.z;
+  //float dt = (float)(1.0f/ATTITUDE_RATE);
 
   if (self->bicoptermode == 0){// initialization
     self->bicoptermode = 1;
@@ -644,12 +644,12 @@ bool controllerMellingerFirmwareTest(void)
   return controllerMellingerTest(&g_self);
 }
 
-void controllerMellingerFirmware(control_t *control, const setpoint_t *setpoint,
+void controllerMellingerFirmware(control_t *control, behavior_t *behavior,
                                          const sensorData_t *sensors,
                                          const state_t *state,
                                          const uint32_t tick)
 {
-  controllerMellinger(&g_self, control, setpoint, sensors, state, tick);
+  controllerMellinger(&g_self, control, behavior, sensors, state, tick);
 }
 
 

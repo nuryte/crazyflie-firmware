@@ -98,7 +98,7 @@ struct velocityPacket_s {
 } __attribute__((packed));
 static void velocityDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
-  const struct velocityPacket_s *values = data;
+  //const struct velocityPacket_s *values = data;
 
   ASSERT(datalen == sizeof(struct velocityPacket_s));
   //DEBUG_PRINT("(Velocity) Please show here!)\n");
@@ -307,7 +307,7 @@ struct hoverPacket_s {
 } __attribute__((packed));
 static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
-  const struct hoverPacket_s *values = data;
+  //const struct hoverPacket_s *values = data;
 
   ASSERT(datalen == sizeof(struct hoverPacket_s));
  /**
@@ -395,7 +395,7 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
  } __attribute__((packed));
 static void positionDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
-  const struct positionPacket_s *values = data;
+  //const struct positionPacket_s *values = data;
   //DEBUG_PRINT("(position) %f,%f,%f,%f\n", (double)values->x, (double)values->y, (double)values->z, (double)values->yaw);
 
   //setpoint->manual.m1 = values->x;

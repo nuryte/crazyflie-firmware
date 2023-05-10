@@ -59,15 +59,16 @@ void behaviorSelect(behaviorState_t* self,  const setpoint_t *setpoint,
                                          const state_t *state,
                                          const uint32_t tick);
 
-#ifdef CRAZYFLIE_FW
+//#ifdef CRAZYFLIE_FW
 
 void behaviorFirmwareInit(void);
 bool behaviorFirmwareTest(void);
 void behaviorSelectFirmware(const setpoint_t *setpoint,
+                                         behavior_t * behavior,
                                          const sensorData_t *sensors,
                                          const state_t *state,
                                          const uint32_t tick);
 
-#endif // CRAZYFLIE_FW
+//#endif // CRAZYFLIE_FW
 
 #endif //__CONTROLLER_MELLINGER_H__
