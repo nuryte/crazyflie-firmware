@@ -46,6 +46,7 @@
 #include "crtp_localization_service.h"
 #include "controller.h"
 #include "behavior.h"
+#include "controller_mellinger.h"
 #include "power_distribution.h"
 #include "collision_avoidance.h"
 #include "health.h"
@@ -302,6 +303,7 @@ static void stabilizerTask(void* param)
 
 
       controller(&control, &behavior, &sensorData, &state, tick);
+      //controllerMellingerFirmware(&control, &behavior, &sensorData, &state, tick);
 
       //if (fabs(state.attitude.roll)>30) {
       //  control.thrust = 10000;
